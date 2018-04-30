@@ -2,9 +2,13 @@
     "name": "xpp",
     "displayName": "ODE File Syntax Highlighter for XPP/XPPAUT",
     "description": "ODE files to be used with XPP/XPPAUT",
-    "version": "0.0.1",
+    "version": "0.0.2",
     "publisher": "wjmccann",
-    "icon": "./images/icon.png",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/Joe-McCann/XPP-ODE-Extension"
+    },
+    "icon": "images/icon.png",
     "engines": {
         "vscode": "^1.22.0"
     },
@@ -12,16 +16,26 @@
         "Languages"
     ],
     "contributes": {
-        "languages": [{
-            "id": "xpp",
-            "aliases": ["XPP ODE", "XPP", "XPPAUT"],
-            "extensions": [".ode"],
-            "configuration": "./language-configuration.json"
-        }],
-        "grammars": [{
-            "language": "xpp",
-            "scopeName": "source.xpp",
-            "path": "./syntaxes/xpp.tmLanguage.json"
-        }]
+        "languages": [
+            {
+                "id": "xpp",
+                "aliases": [
+                    "XPP ODE",
+                    "XPP",
+                    "XPPAUT"
+                ],
+                "extensions": [
+                    ".ode"
+                ],
+                "configuration": "./language-configuration.json"
+            }
+        ],
+        "grammars": [
+            {
+                "language": "xpp",
+                "scopeName": "source.xpp",
+                "path": "./syntaxes/xpp.tmLanguage.json"
+            }
+        ]
     }
 }
