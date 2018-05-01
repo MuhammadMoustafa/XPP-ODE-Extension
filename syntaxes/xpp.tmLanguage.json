@@ -25,8 +25,12 @@
 				"match": "\\b^([pbviawntgm][a-z]*)\\b"
 			},
 			{
+				"name": "keyword.operator.xpp",
+				"match": "[\\*\\^\\+\\-\\/]"
+			},
+			{
 				"name": "keyword.control.conditional.xpp",
-				"match": "(?<![a-zA-Z0-9])(if|only|else|then)(?![a-zA-Z0-9])"
+				"match": "(?<![a-zA-Z0-9])(if|only|else|then|set|done)(?![a-zA-Z0-9])"
 			},
 			{
 				"name": "keywork.other.xpp",
@@ -34,7 +38,7 @@
 			},
 			{
 				"name": "keyword.other.reservedFunctions.xpp",
-				"match": "(?<![a-zA-Z0-9])(heav|sign|ran|besselj|bessely|erf|exp|erfc|normal|max|delay|ceil|sum|of)(?![a-zA-Z0-9])"
+				"match": "(?<![a-zA-Z0-9])(heav|sign|ran|besselj|bessely|erf|exp|erfc|normal|max|delay|ceil|sum|of|sin|cos|tan|sinh|cosh|tanh)(?![a-zA-Z0-9])"
 			}]
 		},
 		"strings": {
@@ -52,7 +56,7 @@
 			"patterns": [
 				{
 					"name": "variable.language.derivative.xpp",
-					"match": "\\b(d[a-zA-Z]/dt)|[a-zA-Z]\\'\\b"
+					"match": "\\b(d[a-zA-Z]+\\/dt)|[a-zA-Z]\\'\\b"
 				}
 			]
 		},

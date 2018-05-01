@@ -1,7 +1,13 @@
 # Change Log
-All notable changes to the "ode" extension will be documented in this file.
+All notable changes to the this extension will be documented in this file.
 
-Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
+## Version 0.0.3
 
-## [Unreleased]
-- Initial release
+#### Added
+- Actually added things to the change log 
+- Added **sin**, **cos**, **tan**, **sinh**, **cosh**, **tanh**
+to list of reserved keywords
+
+#### Fixed
+- Fixed the Readme to actually be readable
+- Derivatives with multi-character names will now be registered
