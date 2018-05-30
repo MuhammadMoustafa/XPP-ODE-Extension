@@ -19,6 +19,18 @@
 		}
 	],
 	"repository": {
+		"variable": {
+			"patterns": [
+				{
+					"name": "variable.language.derivative.xpp",
+					"match": "\\b((d[a-zA-Z]+\\/dt))\\b"
+				},
+				{
+					"name": "variable.language.derivative.variate.xpp",
+					"match": "^[a-zA-Z_]+'"
+				}
+			]
+		},
 		"keywords": {
 			"patterns": [{
 				"name": "keyword.xpp",
@@ -49,14 +61,6 @@
 				{
 					"name": "constant.character.escape.xpp",
 					"match": "\\\\."
-				}
-			]
-		},
-		"variable": {
-			"patterns": [
-				{
-					"name": "variable.language.derivative.xpp",
-					"match": "\\b(d[a-zA-Z]+\\/dt)|[a-zA-Z]\\'\\b"
 				}
 			]
 		},

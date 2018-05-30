@@ -1,6 +1,11 @@
 # Change Log
 All notable changes to the this extension will be documented in this file.
 
+## Version 0.0.4
+
+### Fixed
+- Derivatives that are apostrophes will be recognized and highlighted now!
+
 ## Version 0.0.3
 
 #### Added
