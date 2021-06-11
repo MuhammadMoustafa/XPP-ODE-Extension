@@ -1,6 +1,6 @@
 {
 	"$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
-	"name": "XPP ODE",
+	"name": "XPP",
 	"patterns": [
 		{
 			"include": "#keywords"
@@ -37,6 +37,14 @@
 				"match": "\\b^([pbviawntgm][a-z]*)\\b"
 			},
 			{
+				"name": "keyword.include",
+				"match": "#include *"
+			},
+			{
+				"name": "keyword.end",
+				"match": "#done"
+			},
+			{
 				"name": "keyword.operator.xpp",
 				"match": "[\\*\\^\\+\\-\\/]"
 			},
@@ -68,11 +76,11 @@
 			"patterns": [
 				{
 					"name": "comment.line.xpp",
-					"match": "#.*"
+					"match": "#(?!(include|done)).*"
 				},
 				{
 					"name":"comment.line.number-sign.xpp",
-					"match":"#"
+					"match":"#(?!(include|done))"
 				}
 			]
 		},
