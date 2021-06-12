@@ -1,7 +1,7 @@
 ## This repo is a fork for Joe-McCann XPP-ODE-Extension repo [Repo Link](https://github.com/Joe-McCann/XPP-ODE-Extension)
 
-If you face any problems or have any additional features you want to add, you may open an issue or email me [muhammadmoustafa22@gmail.com](mailto:muhammadmoustafa22@gmail.com)
-Logo disgned by: [Manar Mosutafa](manarmoustafa246@gmail.com)
+If you face any problems or have any additional features you want to add, you may open an issue or [email me](mailto:muhammadmoustafa22@gmail.com)  
+Logo disgned by: [Manar Mosutafa](mailto:manarmoustafa246@gmail.com)
 
 ## New Features Added:
 - Support for inc files
