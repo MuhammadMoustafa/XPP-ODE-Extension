@@ -1,7 +1,7 @@
 {
 	"name": "xpp",
 	"displayName": "XPP",
-	"description": "Syntax highlighter for XPPAUT \"ode, inc\" files based upon Joe-McCann extension",
+	"description": "Provides XPP \"ode, inc\" syntax and functionalities for VSCode",
 	"version": "0.0.2",
 	"publisher": "MuhammadMoustafa",
 	"author": {
@@ -31,7 +31,9 @@
 		"onSave",
 		"onCreate",
 		"onOpen",
-		"onChange"
+		"onChange",
+		"onLanguage:xpp",
+		"onCommand:xpp.toggleComment"
 	],
 	"categories": [
 		"Programming Languages"
@@ -61,15 +63,8 @@
 		],
 		"commands": [
 			{
-				"command": "extension.toggleComment",
+				"command": "xpp.toggleComment",
 				"title": "Toggle Comment"
-			}
-		],
-		"keybindings": [
-			{
-				"command": "extension.toggleComment",
-				"key": "ctrl+/",
-				"when": "editorTextFocus"
 			}
 		]
 	}

@@ -26,11 +26,44 @@
 			"patterns": [
 				{
 					"name": "variable.language.derivative.xpp",
-					"match": "\\b((d[a-zA-Z]+\\/dt))\\b"
+					"match": "\\b(d)([a-zA-Z_][a-zA-Z0-9_]*)(\\/dt)\\b",
+					"captures": {
+						"1": { "name": "keyword.operator.derivative.xpp" },
+						"2": { "name": "variable.other.xpp" },
+						"3": { "name": "keyword.operator.derivative.xpp" }
+					}
 				},
 				{
 					"name": "variable.language.derivative.variate.xpp",
-					"match": "^[a-zA-Z_]+'"
+					"match": "\\b([a-zA-Z_][a-zA-Z0-9_]*)(\\')\\b",
+					"captures": {
+						"1": { "name": "variable.other.xpp" },
+						"2": { "name": "keyword.operator.derivative.xpp" }
+					}
+				},
+				{
+					"name": "variable.language.derivative.time.xpp",
+					"match": "\\b([a-zA-Z_][a-zA-Z0-9_]*)(\\(t\\))\\b",
+					"captures": {
+						"1": { "name": "variable.other.xpp" },
+						"2": { "name": "keyword.operator.derivative.xpp" }
+					}
+				},
+				{
+					"name": "variable.language.derivative.time.shifted.xpp",
+					"match": "\\b([a-zA-Z_][a-zA-Z0-9_]*)(\\(t\\+[0-9]+\\))\\b",
+					"captures": {
+						"1": { "name": "variable.other.xpp" },
+						"2": { "name": "keyword.operator.derivative.xpp" }
+					}
+				},
+				{
+					"name": "variable.other.xpp",
+					"match": "\\b[a-zA-Z_][a-zA-Z0-9_]*\\b(?=\\s*=)"
+				},
+				{
+					"name": "variable.parameter.xpp",
+					"match": "(?<=\\()[a-zA-Z_][a-zA-Z0-9_]*(?=\\))"
 				}
 			]
 		},
@@ -38,7 +71,15 @@
 			"patterns": [
 				{
 					"name": "keyword.xpp",
-					"match": "\\b^([pbviawntgm][a-z]*)\\b"
+					"match": "\\b(^[pbviawntgm]\\s|parameter|param|par|bdry|bndry|volt|init|aux|global|markov|wiener|table)\\b"
+				},
+				{
+					"name": "keyword.options.xpp",
+					"match": "\\b(maxstor|back|small|big|smc|umc|xnc|ync|but)\\b"
+				},
+				{
+					"name": "keyword.options.auto",
+					"match": "\\b(ds|dsmin|dsmax)\\b"
 				},
 				{
 					"name": "keyword.include",
@@ -80,16 +121,12 @@
 					"match": "#(?!(include|done)).*"
 				},
 				{
-					"name": "comment.line.number-sign.xpp",
-					"match": "#(?!(include|done))"
-				},
-				{
 					"name": "comment.line.include.xpp",
-					"match": "# #include.*"
+					"match": "#include.*"
 				},
 				{
 					"name": "comment.line.done.xpp",
-					"match": "##done.*"
+					"match": "#done.*"
 				}
 			]
 		},
@@ -97,7 +134,7 @@
 			"patterns": [
 				{
 					"name": "constant.numeric.float.xpp",
-					"match": "\\b([0-9]+)?\\.[0-9]+\\b"
+					"match": "\\b([0-9]+\\.?[0-9]*([eE][+-]?[0-9]+)?)\\b"
 				},
 				{
 					"name": "constant.numeric.integer.xpp",
@@ -105,7 +142,7 @@
 				},
 				{
 					"name": "constant.language",
-					"match": "(?<![a-zA-Z])(pi|t)(?![a-zA-Z])"
+					"match": "(?<![a-zA-Z])(pi|t|e)(?![a-zA-Z])"
 				}
 			]
 		},
