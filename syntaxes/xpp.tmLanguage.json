@@ -1,167 +1,191 @@
 {
-	"$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
-	"name": "XPP",
-	"patterns": [
-		{
-			"include": "#keywords"
-		},
-		{
-			"include": "#strings"
-		},
-		{
-			"include": "#variable"
-		},
-		{
-			"include": "#comment"
-		},
-		{
-			"include": "#constant"
-		},
-		{
-			"include": "#operators"
-		}
-	],
-	"repository": {
-		"variable": {
-			"patterns": [
-				{
-					"name": "variable.language.derivative.xpp",
-					"match": "\\b(d)([a-zA-Z_][a-zA-Z0-9_]*)(\\/dt)\\b",
-					"captures": {
-						"1": { "name": "keyword.operator.derivative.xpp" },
-						"2": { "name": "variable.other.xpp" },
-						"3": { "name": "keyword.operator.derivative.xpp" }
-					}
-				},
-				{
-					"name": "variable.language.derivative.variate.xpp",
-					"match": "\\b([a-zA-Z_][a-zA-Z0-9_]*)(\\')\\b",
-					"captures": {
-						"1": { "name": "variable.other.xpp" },
-						"2": { "name": "keyword.operator.derivative.xpp" }
-					}
-				},
-				{
-					"name": "variable.language.derivative.time.xpp",
-					"match": "\\b([a-zA-Z_][a-zA-Z0-9_]*)(\\(t\\))\\b",
-					"captures": {
-						"1": { "name": "variable.other.xpp" },
-						"2": { "name": "keyword.operator.derivative.xpp" }
-					}
-				},
-				{
-					"name": "variable.language.derivative.time.shifted.xpp",
-					"match": "\\b([a-zA-Z_][a-zA-Z0-9_]*)(\\(t\\+[0-9]+\\))\\b",
-					"captures": {
-						"1": { "name": "variable.other.xpp" },
-						"2": { "name": "keyword.operator.derivative.xpp" }
-					}
-				},
-				{
-					"name": "variable.other.xpp",
-					"match": "\\b[a-zA-Z_][a-zA-Z0-9_]*\\b(?=\\s*=)"
-				},
-				{
-					"name": "variable.parameter.xpp",
-					"match": "(?<=\\()[a-zA-Z_][a-zA-Z0-9_]*(?=\\))"
-				}
-			]
-		},
-		"keywords": {
-			"patterns": [
-				{
-					"name": "keyword.xpp",
-					"match": "\\b(^[pbviawntgm]\\s|parameter|param|par|bdry|bndry|volt|init|aux|global|markov|wiener|table)\\b"
-				},
-				{
-					"name": "keyword.options.xpp",
-					"match": "\\b(maxstor|back|small|big|smc|umc|xnc|ync|but)\\b"
-				},
-				{
-					"name": "keyword.options.auto",
-					"match": "\\b(ds|dsmin|dsmax)\\b"
-				},
-				{
-					"name": "keyword.include",
-					"match": "#include *"
-				},
-				{
-					"name": "keyword.end",
-					"match": "(#done|\\bdone\\b)"
-				},
-				{
-					"name": "keyword.operator.xpp",
-					"match": "[\\*\\^\\+\\-\\/]"
-				},
-				{
-					"name": "keyword.control.conditional.xpp",
-					"match": "(?<![a-zA-Z0-9])(if|only|else|then|set|done)(?![a-zA-Z0-9])"
-				},
-				{
-					"name": "keyword.other.reservedFunctions.xpp",
-					"match": "(?<![a-zA-Z0-9])(sin|cos|tan|atan|atan2|sinh|cosh|tanh|exp|delay|ln|log|log10|t|pi|if|then|else|asin|acos|heav|sign|ceil|flr|ran|abs|del_shft|max|min|normal|besselj|bessely|erf|erfc|hom_bcs|sum|shift|not|@|\\$)(?![a-zA-Z0-9])"
-				}
-			]
-		},
-		"strings": {
-			"name": "string.quoted.double.xpp",
-			"begin": "\"",
-			"end": "\"",
-			"patterns": [
-				{
-					"name": "constant.character.escape.xpp",
-					"match": "\\\\."
-				}
-			]
-		},
-		"comment": {
-			"patterns": [
-				{
-					"name": "comment.line.xpp",
-					"match": "#(?!(include|done)).*"
-				},
-				{
-					"name": "comment.line.include.xpp",
-					"match": "#include.*"
-				},
-				{
-					"name": "comment.line.done.xpp",
-					"match": "#done.*"
-				}
-			]
-		},
-		"constant": {
-			"patterns": [
-				{
-					"name": "constant.numeric.float.xpp",
-					"match": "\\b([0-9]+\\.?[0-9]*([eE][+-]?[0-9]+)?)\\b"
-				},
-				{
-					"name": "constant.numeric.integer.xpp",
-					"match": "\\b[0-9]+\\b"
-				},
-				{
-					"name": "constant.language",
-					"match": "(?<![a-zA-Z])(pi|t|e)(?![a-zA-Z])"
-				}
-			]
-		},
-		"operators": {
-			"patterns": [
-				{
-					"name": "keyword.operator.arithmetic.xpp",
-					"match": "(\\+|\\-|\\/|\\*|\\^|\\*\\*)"
-				},
-				{
-					"name": "keyword.operator.comparison.xpp",
-					"match": "(\\||>|<|==|>=|<=|!=)"
-				},
-				{
-					"name": "keyword.operator.parenthesis.xpp",
-					"match": "[\\(\\)]"
-				}
-			]
-		}
-	},
-	"scopeName": "source.xpp"
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "XPP",
+  "patterns": [
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#variable"
+    },
+    {
+      "include": "#comment"
+    },
+    {
+      "include": "#constant"
+    },
+    {
+      "include": "#operators"
+    }
+  ],
+  "repository": {
+    "variable": {
+      "patterns": [
+        {
+          "name": "variable.language.derivative.xpp",
+          "match": "\\b(d)([a-zA-Z_][a-zA-Z0-9_]*)(\\/dt)\\b",
+          "captures": {
+            "1": { "name": "keyword.operator.derivative.xpp" },
+            "2": { "name": "variable.other.xpp" },
+            "3": { "name": "keyword.operator.derivative.xpp" }
+          }
+        },
+        {
+          "name": "variable.language.derivative.variate.xpp",
+          "match": "\\b([a-zA-Z_][a-zA-Z0-9_]*)(\\')\\b",
+          "captures": {
+            "1": { "name": "variable.other.xpp" },
+            "2": { "name": "keyword.operator.derivative.xpp" }
+          }
+        },
+        {
+          "name": "variable.language.derivative.time.xpp",
+          "match": "\\b([a-zA-Z_][a-zA-Z0-9_]*)(\\(t\\))\\b",
+          "captures": {
+            "1": { "name": "variable.other.xpp" },
+            "2": { "name": "keyword.operator.derivative.xpp" }
+          }
+        },
+        {
+          "name": "variable.language.derivative.time.shifted.xpp",
+          "match": "\\b([a-zA-Z_][a-zA-Z0-9_]*)(\\(t\\+[0-9]+\\))\\b",
+          "captures": {
+            "1": { "name": "variable.other.xpp" },
+            "2": { "name": "keyword.operator.derivative.xpp" }
+          }
+        },
+        {
+          "name": "variable.other.xpp",
+          "match": "\\b[a-zA-Z_][a-zA-Z0-9_]*\\b(?=\\s*=)"
+        },
+        {
+          "name": "variable.parameter.xpp",
+          "match": "(?<=\\b[a-zA-Z_][a-zA-Z0-9_]*\\()[a-zA-Z_][a-zA-Z0-9_]*(?=\\b|,|\\))",
+          "captures": {
+            "0": { "name": "variable.parameter.xpp" }
+          }
+        },
+        {
+          "name": "variable.parameter.use.xpp",
+          "match": "\\b[a-zA-Z_][a-zA-Z0-9_]*\\b",
+          "captures": {
+            "1": { "name": "variable.parameter.xpp" }
+          }
+        },
+        {
+          "name": "variable.function.xpp",
+          "match": "\\b([a-zA-Z_][a-zA-Z0-9_]*)(?=\\()",
+          "captures": {
+            "1": { "name": "entity.name.function.xpp" }
+          }
+        },
+        {
+          "name": "variable.constant.xpp",
+          "match": "\\b([a-zA-Z_][a-zA-Z0-9_]*)(?=\\s*=\\s*[^a-zA-Z_])",
+          "captures": {
+            "1": { "name": "variable.other.constant.xpp" }
+          }
+        }
+      ]
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.xpp",
+          "match": "\\b(^[pbviawntgm]\\s|parameter|param|par|bdry|bndry|volt|init|aux|global|markov|wiener|table)\\b"
+        },
+        {
+          "name": "keyword.options.xpp",
+          "match": "\\b(maxstor|back|small|big|smc|umc|xnc|ync|but)\\b"
+        },
+        {
+          "name": "keyword.options.auto",
+          "match": "\\b(ds|dsmin|dsmax)\\b"
+        },
+        {
+          "name": "keyword.include",
+          "match": "#include *"
+        },
+        {
+          "name": "keyword.end",
+          "match": "(#done|\\bdone\\b)"
+        },
+        {
+          "name": "keyword.operator.xpp",
+          "match": "[\\*\\^\\+\\-\\/]"
+        },
+        {
+          "name": "keyword.control.conditional.xpp",
+          "match": "(?<![a-zA-Z0-9])(if|only|else|then|set|done)(?![a-zA-Z0-9])"
+        },
+        {
+          "name": "keyword.other.reservedFunctions.xpp",
+          "match": "(?<![a-zA-Z0-9])(sin|cos|tan|atan|atan2|sinh|cosh|tanh|exp|delay|ln|log|log10|t|pi|if|then|else|asin|acos|heav|sign|ceil|flr|ran|abs|del_shft|max|min|normal|besselj|bessely|erf|erfc|hom_bcs|sum|shift|not|@|\\$)(?![a-zA-Z0-9])"
+        }
+      ]
+    },
+    "strings": {
+      "name": "string.quoted.double.xpp",
+      "begin": "\"",
+      "end": "\"",
+      "patterns": [
+        {
+          "name": "constant.character.escape.xpp",
+          "match": "\\\\."
+        }
+      ]
+    },
+    "comment": {
+      "patterns": [
+        {
+          "name": "comment.line.xpp",
+          "match": "#(?!(include|done)).*"
+        },
+        {
+          "name": "comment.line.include.xpp",
+          "match": "#include.*"
+        },
+        {
+          "name": "comment.line.done.xpp",
+          "match": "#done.*"
+        }
+      ]
+    },
+    "constant": {
+      "patterns": [
+        {
+          "name": "constant.numeric.float.xpp",
+          "match": "\\b([0-9]+\\.?[0-9]*([eE][+-]?[0-9]+)?)\\b"
+        },
+        {
+          "name": "constant.numeric.integer.xpp",
+          "match": "\\b[0-9]+\\b"
+        },
+        {
+          "name": "constant.language",
+          "match": "(?<![a-zA-Z])(pi|t|e)(?![a-zA-Z])"
+        }
+      ]
+    },
+    "operators": {
+      "patterns": [
+        {
+          "name": "keyword.operator.arithmetic.xpp",
+          "match": "(\\+|\\-|\\/|\\*|\\^|\\*\\*)"
+        },
+        {
+          "name": "keyword.operator.comparison.xpp",
+          "match": "(\\||>|<|==|>=|<=|!=)"
+        },
+        {
+          "name": "keyword.operator.parenthesis.xpp",
+          "match": "[\\(\\)]"
+        }
+      ]
+    }
+  },
+  "scopeName": "source.xpp"
 }
