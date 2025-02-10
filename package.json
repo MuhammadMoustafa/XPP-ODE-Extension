@@ -1,8 +1,8 @@
 {
 	"name": "xpp",
 	"displayName": "XPP",
-	"description": "Syntax highliter for Xppaut \"ode, inc\" files based upon Joe-McCann extension",
-	"version": "0.0.1",
+	"description": "Syntax highlighter for XPPAUT \"ode, inc\" files based upon Joe-McCann extension",
+	"version": "0.0.2",
 	"publisher": "MuhammadMoustafa",
 	"author": {
 		"name": "Muhammad Moustafa",
@@ -14,9 +14,25 @@
 		"home": "https://github.com/MuhammadMoustafa/XPP-ODE-Extension/blob/master/README.md"
 	},
 	"icon": "images/icon.png",
-	"engines": {
-		"vscode": "^1.22.0"
+	"main": "./out/extension.js",
+	"scripts": {
+		"vscode:prepublish": "npm run compile",
+		"compile": "tsc -p ./"
 	},
+	"devDependencies": {
+		"typescript": "^4.0.0",
+		"@types/node": "^12.11.7",
+		"@types/vscode": "^1.22.0"
+	},
+	"engines": {
+		"vscode": "^1.82.0"
+	},
+	"activationEvents": [
+		"onSave",
+		"onCreate",
+		"onOpen",
+		"onChange"
+	],
 	"categories": [
 		"Programming Languages"
 	],
@@ -41,6 +57,19 @@
 				"language": "xpp",
 				"scopeName": "source.xpp",
 				"path": "./syntaxes/xpp.tmLanguage.json"
+			}
+		],
+		"commands": [
+			{
+				"command": "extension.toggleComment",
+				"title": "Toggle Comment"
+			}
+		],
+		"keybindings": [
+			{
+				"command": "extension.toggleComment",
+				"key": "ctrl+/",
+				"when": "editorTextFocus"
 			}
 		]
 	}

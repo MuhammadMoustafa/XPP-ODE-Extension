@@ -16,6 +16,9 @@
 		},
 		{
 			"include": "#constant"
+		},
+		{
+			"include": "#operators"
 		}
 	],
 	"repository": {
@@ -32,34 +35,32 @@
 			]
 		},
 		"keywords": {
-			"patterns": [{
-				"name": "keyword.xpp",
-				"match": "\\b^([pbviawntgm][a-z]*)\\b"
-			},
-			{
-				"name": "keyword.include",
-				"match": "#include *"
-			},
-			{
-				"name": "keyword.end",
-				"match": "#done"
-			},
-			{
-				"name": "keyword.operator.xpp",
-				"match": "[\\*\\^\\+\\-\\/]"
-			},
-			{
-				"name": "keyword.control.conditional.xpp",
-				"match": "(?<![a-zA-Z0-9])(if|only|else|then|set|done)(?![a-zA-Z0-9])"
-			},
-			{
-				"name": "keywork.other.xpp",
-				"match": "(?<![a-zA-Z0-9])(OUTPUT|XP|YP|ZP|MAXSTOR|BACK|SMALL|BIG|AXES|TOTAL|DT(MAX|MIN)?|NJMP|T0|TRANS|NMESH|METH|TOLER|BOUND|DELAY|[XY](LO|HI)|[XYZ](MAX|MIN))(?![a-zA-Z0-9])"
-			},
-			{
-				"name": "keyword.other.reservedFunctions.xpp",
-				"match": "(?<![a-zA-Z0-9])(heav|sign|ran|besselj|bessely|erf|exp|erfc|normal|max|delay|ceil|sum|of|sin|cos|tan|sinh|cosh|tanh)(?![a-zA-Z0-9])"
-			}]
+			"patterns": [
+				{
+					"name": "keyword.xpp",
+					"match": "\\b^([pbviawntgm][a-z]*)\\b"
+				},
+				{
+					"name": "keyword.include",
+					"match": "#include *"
+				},
+				{
+					"name": "keyword.end",
+					"match": "(#done|\\bdone\\b)"
+				},
+				{
+					"name": "keyword.operator.xpp",
+					"match": "[\\*\\^\\+\\-\\/]"
+				},
+				{
+					"name": "keyword.control.conditional.xpp",
+					"match": "(?<![a-zA-Z0-9])(if|only|else|then|set|done)(?![a-zA-Z0-9])"
+				},
+				{
+					"name": "keyword.other.reservedFunctions.xpp",
+					"match": "(?<![a-zA-Z0-9])(sin|cos|tan|atan|atan2|sinh|cosh|tanh|exp|delay|ln|log|log10|t|pi|if|then|else|asin|acos|heav|sign|ceil|flr|ran|abs|del_shft|max|min|normal|besselj|bessely|erf|erfc|hom_bcs|sum|shift|not|@|\\$)(?![a-zA-Z0-9])"
+				}
+			]
 		},
 		"strings": {
 			"name": "string.quoted.double.xpp",
@@ -72,31 +73,55 @@
 				}
 			]
 		},
-		"comment":{
+		"comment": {
 			"patterns": [
 				{
 					"name": "comment.line.xpp",
 					"match": "#(?!(include|done)).*"
 				},
 				{
-					"name":"comment.line.number-sign.xpp",
-					"match":"#(?!(include|done))"
+					"name": "comment.line.number-sign.xpp",
+					"match": "#(?!(include|done))"
+				},
+				{
+					"name": "comment.line.include.xpp",
+					"match": "# #include.*"
+				},
+				{
+					"name": "comment.line.done.xpp",
+					"match": "##done.*"
 				}
 			]
 		},
-		"constant":{
-			"patterns":[
+		"constant": {
+			"patterns": [
 				{
 					"name": "constant.numeric.float.xpp",
 					"match": "\\b([0-9]+)?\\.[0-9]+\\b"
 				},
 				{
-					"name":"constant.numeric.integer.xpp",
+					"name": "constant.numeric.integer.xpp",
 					"match": "\\b[0-9]+\\b"
 				},
 				{
-					"name":"constant.language",
-					"match":"(?<![a-zA-Z])(pi|t)(?![a-zA-Z])"
+					"name": "constant.language",
+					"match": "(?<![a-zA-Z])(pi|t)(?![a-zA-Z])"
+				}
+			]
+		},
+		"operators": {
+			"patterns": [
+				{
+					"name": "keyword.operator.arithmetic.xpp",
+					"match": "(\\+|\\-|\\/|\\*|\\^|\\*\\*)"
+				},
+				{
+					"name": "keyword.operator.comparison.xpp",
+					"match": "(\\||>|<|==|>=|<=|!=)"
+				},
+				{
+					"name": "keyword.operator.parenthesis.xpp",
+					"match": "[\\(\\)]"
 				}
 			]
 		}

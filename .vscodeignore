@@ -2,3 +2,10 @@
 .vscode-test/**
 .gitignore
 vsc-extension-quickstart.md
+
+unused/
+*.vsix
+*.pat
+tsconfig.json
+*.sh
+src/
