@@ -31,9 +31,7 @@
 		"onSave",
 		"onCreate",
 		"onOpen",
-		"onChange",
-		"onLanguage:xpp",
-		"onCommand:xpp.toggleComment"
+		"onChange"
 	],
 	"categories": [
 		"Programming Languages"

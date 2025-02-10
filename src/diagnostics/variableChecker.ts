@@ -9,9 +9,9 @@ export class VariableChecker {
         // Collect variable names and check for reserved words
         for (let i = 0; i < document.lineCount; i++) {
             const line = document.lineAt(i).text;
-            const match = line.match(/\b[a-zA-Z_][a-zA-Z0-9_]*\b(?=\s*=)/);
+            const match = line.match(/\b([a-zA-Z_][a-zA-Z0-9_]*)\b(?=\s*=)/);
             if (match) {
-                const variable = match[0];
+                const variable = match[1];
                 if (reservedWords.has(variable)) {
                     const range = new vscode.Range(i, match.index || 0, i, (match.index || 0) + variable.length);
                     const diagnostic = new vscode.Diagnostic(range, `Reserved word used as variable name: ${variable}`, vscode.DiagnosticSeverity.Error);
@@ -26,7 +26,9 @@ export class VariableChecker {
         for (let i = 0; i < document.lineCount; i++) {
             const line = document.lineAt(i).text;
             variableNames.forEach(variable => {
-                const regex = new RegExp(`\\b${variable}\\b`, 'gi');
+                // const regex = new RegExp(`\\b${variable}\\b`, 'gi');
+                const safeVariable = variable.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); // Escape special characters
+                const regex = new RegExp(`\\b${safeVariable}\\b`, 'gi');
                 let match;
                 while ((match = regex.exec(line)) !== null) {
                     const range = new vscode.Range(i, match.index, i, match.index + variable.length);
@@ -39,7 +41,10 @@ export class VariableChecker {
             if (paramMatch) {
                 const params = paramMatch[1].split(/\s*,\s*/);
                 params.forEach(param => {
-                    const regex = new RegExp(`\\b${param}\\b`, 'gi');
+                    // const regex = new RegExp(`\\b${param}\\b`, 'gi');
+                    const safeParam = param.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); // Escape special characters
+                    const regex = new RegExp(`\\b${safeParam}\\b`, 'gi');
+
                     let match;
                     while ((match = regex.exec(line)) !== null) {
                         const range = new vscode.Range(i, match.index, i, match.index + param.length);
