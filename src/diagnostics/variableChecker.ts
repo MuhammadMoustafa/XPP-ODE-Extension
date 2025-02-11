@@ -22,38 +22,38 @@ export class VariableChecker {
             }
         }
 
-        // Highlight variables and function parameters
-        for (let i = 0; i < document.lineCount; i++) {
-            const line = document.lineAt(i).text;
-            variableNames.forEach(variable => {
-                // const regex = new RegExp(`\\b${variable}\\b`, 'gi');
-                const safeVariable = variable.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); // Escape special characters
-                const regex = new RegExp(`\\b${safeVariable}\\b`, 'gi');
-                let match;
-                while ((match = regex.exec(line)) !== null) {
-                    const range = new vscode.Range(i, match.index, i, match.index + variable.length);
-                    const diagnostic = new vscode.Diagnostic(range, `Variable: ${variable}`, vscode.DiagnosticSeverity.Information);
-                    diagnostics.push(diagnostic);
-                }
-            });
+        // // Highlight variables and function parameters
+        // for (let i = 0; i < document.lineCount; i++) {
+        //     const line = document.lineAt(i).text;
+        //     variableNames.forEach(variable => {
+        //         // const regex = new RegExp(`\\b${variable}\\b`, 'gi');
+        //         const safeVariable = variable.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); // Escape special characters
+        //         const regex = new RegExp(`\\b${safeVariable}\\b`, 'gi');
+        //         let match;
+        //         while ((match = regex.exec(line)) !== null) {
+        //             const range = new vscode.Range(i, match.index, i, match.index + variable.length);
+        //             const diagnostic = new vscode.Diagnostic(range, `Variable: ${variable}`, vscode.DiagnosticSeverity.Information);
+        //             diagnostics.push(diagnostic);
+        //         }
+        //     });
 
-            const paramMatch = line.match(/\(([^)]+)\)/);
-            if (paramMatch) {
-                const params = paramMatch[1].split(/\s*,\s*/);
-                params.forEach(param => {
-                    // const regex = new RegExp(`\\b${param}\\b`, 'gi');
-                    const safeParam = param.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); // Escape special characters
-                    const regex = new RegExp(`\\b${safeParam}\\b`, 'gi');
+        //     const paramMatch = line.match(/\(([^)]+)\)/);
+        //     if (paramMatch) {
+        //         const params = paramMatch[1].split(/\s*,\s*/);
+        //         params.forEach(param => {
+        //             // const regex = new RegExp(`\\b${param}\\b`, 'gi');
+        //             const safeParam = param.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); // Escape special characters
+        //             const regex = new RegExp(`\\b${safeParam}\\b`, 'gi');
 
-                    let match;
-                    while ((match = regex.exec(line)) !== null) {
-                        const range = new vscode.Range(i, match.index, i, match.index + param.length);
-                        const diagnostic = new vscode.Diagnostic(range, `Parameter: ${param}`, vscode.DiagnosticSeverity.Information);
-                        diagnostics.push(diagnostic);
-                    }
-                });
-            }
-        }
+        //             let match;
+        //             while ((match = regex.exec(line)) !== null) {
+        //                 const range = new vscode.Range(i, match.index, i, match.index + param.length);
+        //                 const diagnostic = new vscode.Diagnostic(range, `Parameter: ${param}`, vscode.DiagnosticSeverity.Information);
+        //                 diagnostics.push(diagnostic);
+        //             }
+        //         });
+        //     }
+        // }
 
         return diagnostics;
     }
