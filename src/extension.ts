@@ -5,6 +5,7 @@ import { XppSemanticTokensProvider } from './providers/semanticTokens';
 import { DiagnosticManager } from './diagnostics/diagnosticManager';
 import { supportedFiles } from './utils/constants';
 import { toggleComment } from './utils/commenting';
+import { handleNewFile } from './utils/fileHandler';
 
 let diagnosticManager: DiagnosticManager;
 
@@ -41,6 +42,13 @@ export function activate(context: vscode.ExtensionContext) {
         vscode.languages.registerDocumentSemanticTokensProvider({ scheme: 'file', language: 'xpp' }, new XppSemanticTokensProvider(), new vscode.SemanticTokensLegend(['function', 'parameter'])),
         vscode.commands.registerTextEditorCommand('xpp.toggleComment', (editor, edit) => {
             toggleComment(editor.document, edit);
+        }),
+        vscode.workspace.onDidCreateFiles(event => {
+            event.files.forEach(file => {
+                vscode.workspace.openTextDocument(file).then(document => {
+                    handleNewFile(document);
+                });
+            });
         })
     );
 
