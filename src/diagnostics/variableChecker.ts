@@ -6,55 +6,41 @@ export class VariableChecker {
         const diagnostics: vscode.Diagnostic[] = [];
         const variableNames: Set<string> = new Set();
 
-        // Collect variable names and check for reserved words
         for (let i = 0; i < document.lineCount; i++) {
-            const line = document.lineAt(i).text;
-            const match = line.match(/\b([a-zA-Z_][a-zA-Z0-9_]*)\b(?=\s*=)/);
+            const line = document.lineAt(i).text.trim();
+
+            // Ignore commented lines
+            if (line.startsWith('#')) continue;
+            
+            // Allow reserved words after '@ ' (with a space)
+            if (/^@\s+/.test(line)) continue;
+
+            const match = line.match(/\b([a-zA-Z_][a-zA-Z0-9_]*)\b(?=\s*=)/i);
             if (match) {
-                const variable = match[1];
+                const variable = match[1].toLowerCase(); // Make check case-insensitive
                 if (reservedWords.has(variable)) {
                     const range = new vscode.Range(i, match.index || 0, i, (match.index || 0) + variable.length);
-                    const diagnostic = new vscode.Diagnostic(range, `Reserved word used as variable name: ${variable}`, vscode.DiagnosticSeverity.Error);
+                    const diagnostic = new vscode.Diagnostic(
+                        range, 
+                        `Reserved word used as variable name: ${variable}`, 
+                        vscode.DiagnosticSeverity.Error
+                    );
                     diagnostics.push(diagnostic);
                 } else {
                     variableNames.add(variable);
                 }
             }
+
+            // Check for '@' without space
+            if (/^@\S/.test(line)) {
+                const range = new vscode.Range(i, 0, i, 1);
+                diagnostics.push(new vscode.Diagnostic(
+                    range, 
+                    `Missing space after '@'`, 
+                    vscode.DiagnosticSeverity.Error
+                ));
+            }
         }
-
-        // // Highlight variables and function parameters
-        // for (let i = 0; i < document.lineCount; i++) {
-        //     const line = document.lineAt(i).text;
-        //     variableNames.forEach(variable => {
-        //         // const regex = new RegExp(`\\b${variable}\\b`, 'gi');
-        //         const safeVariable = variable.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); // Escape special characters
-        //         const regex = new RegExp(`\\b${safeVariable}\\b`, 'gi');
-        //         let match;
-        //         while ((match = regex.exec(line)) !== null) {
-        //             const range = new vscode.Range(i, match.index, i, match.index + variable.length);
-        //             const diagnostic = new vscode.Diagnostic(range, `Variable: ${variable}`, vscode.DiagnosticSeverity.Information);
-        //             diagnostics.push(diagnostic);
-        //         }
-        //     });
-
-        //     const paramMatch = line.match(/\(([^)]+)\)/);
-        //     if (paramMatch) {
-        //         const params = paramMatch[1].split(/\s*,\s*/);
-        //         params.forEach(param => {
-        //             // const regex = new RegExp(`\\b${param}\\b`, 'gi');
-        //             const safeParam = param.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); // Escape special characters
-        //             const regex = new RegExp(`\\b${safeParam}\\b`, 'gi');
-
-        //             let match;
-        //             while ((match = regex.exec(line)) !== null) {
-        //                 const range = new vscode.Range(i, match.index, i, match.index + param.length);
-        //                 const diagnostic = new vscode.Diagnostic(range, `Parameter: ${param}`, vscode.DiagnosticSeverity.Information);
-        //                 diagnostics.push(diagnostic);
-        //             }
-        //         });
-        //     }
-        // }
-
         return diagnostics;
     }
 }

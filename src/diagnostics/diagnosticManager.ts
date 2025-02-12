@@ -25,22 +25,20 @@ export class DiagnosticManager {
 
     private checkEndDirectives(document: vscode.TextDocument): vscode.Diagnostic[] {
         const diagnostics: vscode.Diagnostic[] = [];
-        const fileName = document.fileName;
         const text = document.getText();
         const lines = text.split('\n').map(line => line.trim());
-        const lastNonEmptyLine = lines.reverse().find(line => line !== '');
-
-        if (fileName.endsWith('.ode') && lastNonEmptyLine !== 'done') {
+        const lastNonEmptyLine = lines.reverse().find(line => line !== '' && !line.startsWith('#'));
+    
+        if (document.fileName.endsWith('.ode') && lastNonEmptyLine !== 'done') {
             const range = new vscode.Range(document.lineCount - 1, 0, document.lineCount - 1, lastNonEmptyLine?.length || 0);
-            diagnostics.push(new vscode.Diagnostic(range, 'Missing done at the end of the .ode file', vscode.DiagnosticSeverity.Error));
-        } else if (fileName.endsWith('.inc') && lastNonEmptyLine !== '#done') {
+            diagnostics.push(new vscode.Diagnostic(range, 'Missing "done" at the end of the .ode file', vscode.DiagnosticSeverity.Error));
+        } else if (document.fileName.endsWith('.inc') && !/^#done\b/.test(lastNonEmptyLine || '')) {
             const range = new vscode.Range(document.lineCount - 1, 0, document.lineCount - 1, lastNonEmptyLine?.length || 0);
-            diagnostics.push(new vscode.Diagnostic(range, 'Missing #done at the end of the .inc file', vscode.DiagnosticSeverity.Error));
+            diagnostics.push(new vscode.Diagnostic(range, 'Missing "#done" at the end of the .inc file', vscode.DiagnosticSeverity.Error));
         }
-
         return diagnostics;
     }
-
+    
     public dispose() {
         this.diagnosticCollection.dispose();
     }
