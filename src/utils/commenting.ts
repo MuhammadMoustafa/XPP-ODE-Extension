@@ -1,29 +1,49 @@
 import * as vscode from 'vscode';
 
-export function toggleComment(document: vscode.TextDocument, edit: vscode.TextEditorEdit) {
-    // for (let i = 0; i < document.lineCount; i++) {
-    //     const line = document.lineAt(i);
-    //     const text = line.text.trim();
-    //     const isIncFile = document.fileName.endsWith('.inc');
-    //     const includeRegex = /^#?\s*#include/i;
-    //     const doneRegex = /^#?\s*#done/i;
+export function toggleComment(document: vscode.TextDocument, edit: vscode.TextEditorEdit, selection: vscode.Selection) {
+    console.log('toggleComment function called');
+    const startLine = selection.start.line;
+    const endLine = selection.end.line;
 
-    //     // Special handling for #include (all files) and #done (.inc files only)
-    //     if (includeRegex.test(text) || (doneRegex.test(text) && isIncFile)) {
-    //         if (text.startsWith('#')) {
-    //             const newText = text.replace(/^#\s?/, ''); // Uncomment
-    //             edit.replace(line.range, newText);
-    //         } else {
-    //             edit.replace(line.range, `# ${text}`); // Comment
-    //         }
-    //         continue;
-    //     }
+    for (let i = startLine; i <= endLine; i++) {
+        const line = document.lineAt(i);
+        const text = line.text;
+        const trimmedText = text.trim();
+        const isIncFile = document.fileName.endsWith('.inc');
+        const includeRegex = /^#?\s*#include/i;
+        const doneRegex = /^#?\s*#done/i;
 
-        // // General commenting logic for other lines
-        // if (text.startsWith('#')) {
-        //     edit.replace(line.range, text.replace(/^#\s?/, '')); // Uncomment
-        // } else {
-        //     edit.replace(line.range, `# ${line.text}`); // Comment
-        // }
-    // }
+        // Skip empty lines
+        if (trimmedText.length === 0) {
+            console.log('Skipping empty line');
+            continue;
+        }
+
+        // Special handling for #include (all files) and #done (.inc files only)
+        if (includeRegex.test(trimmedText) || (doneRegex.test(trimmedText) && isIncFile)) {
+            if (trimmedText.startsWith('#')) {
+                console.log('Uncommenting special directive');
+                // Remove the outermost '#' while preserving the rest of the line
+                const newText = text.replace(/^#\s*/, '');
+                edit.replace(line.range, newText);
+            } else {
+                console.log('Commenting special directive');
+                // Add a '#' at the beginning of the line
+                edit.replace(line.range, `#${text}`);
+            }
+            continue;
+        }
+
+        // General commenting logic for other lines
+        if (trimmedText.startsWith('#')) {
+            console.log('Uncommenting line');
+            // Remove the '#' and any following space
+            const newText = text.replace(/^#\s?/, '');
+            edit.replace(line.range, newText);
+        } else {
+            console.log('Commenting line');
+            // Add a '# ' at the beginning of the line
+            edit.replace(line.range, `# ${text}`);
+        }
+    }
 }
