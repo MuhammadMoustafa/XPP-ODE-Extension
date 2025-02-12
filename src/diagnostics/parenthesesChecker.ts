@@ -4,12 +4,29 @@ export class ParenthesesChecker {
     public check(document: vscode.TextDocument): vscode.Diagnostic[] {
         const diagnostics: vscode.Diagnostic[] = [];
         const stack: { char: string, line: number, charIndex: number }[] = [];
+        let inSingleLineComment = false;
 
         // Check for balanced parentheses
         for (let i = 0; i < document.lineCount; i++) {
             const line = document.lineAt(i).text;
             for (let j = 0; j < line.length; j++) {
                 const char = line[j];
+
+                // Handle single-line comments
+                if (char === '#') {
+                    inSingleLineComment = true;
+                }
+
+                // Skip characters inside comments
+                if (inSingleLineComment) {
+                    continue;
+                }
+
+                // Reset single-line comment flag at the end of the line
+                if (j === line.length - 1) {
+                    inSingleLineComment = false;
+                }
+
                 if (char === '(' || char === '{' || char === '[') {
                     stack.push({ char, line: i, charIndex: j });
                 } else if (char === ')' || char === '}' || char === ']') {
