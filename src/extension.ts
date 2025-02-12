@@ -4,12 +4,12 @@ import { XppDocumentHighlightProvider } from './providers/highlightProvider';
 import { DiagnosticManager } from './diagnostics/diagnosticManager';
 import { supportedFiles } from './utils/constants';
 import { toggleComment } from './utils/commenting';
+import { toggleCommentCore } from './utils/commentingCore';
 import { handleNewFile } from './utils/fileHandler';
 
 let diagnosticManager: DiagnosticManager;
 
 export function activate(context: vscode.ExtensionContext) {
-    console.log('XPP Extension is now active');
     
     diagnosticManager = new DiagnosticManager();
 
@@ -38,10 +38,9 @@ export function activate(context: vscode.ExtensionContext) {
         }),
         vscode.languages.registerRenameProvider({ scheme: 'file', language: 'xpp' }, new XppRenameProvider()),
         vscode.languages.registerDocumentHighlightProvider({ scheme: 'file', language: 'xpp' }, new XppDocumentHighlightProvider()),
-        vscode.commands.registerTextEditorCommand('xpp.toggleComment', (editor, edit) => {
-            console.log('xpp.toggleComment command executed');
-            toggleComment(editor.document, edit, editor.selection);
-        }),
+        // vscode.commands.registerTextEditorCommand('xpp.toggleComment', (editor, edit) => {
+        //     toggleComment(editor.document, edit, editor.selection);
+        // }),
         vscode.workspace.onDidCreateFiles(event => {
             event.files.forEach(file => {
                 vscode.workspace.openTextDocument(file).then(document => {
@@ -50,14 +49,39 @@ export function activate(context: vscode.ExtensionContext) {
             });
         })
     );
-        // Override the default comment line command
+        // // Override the default comment line command
+        // context.subscriptions.push(
+        //     vscode.commands.registerCommand('editor.action.commentLine', (args) => {
+        //         const editor = vscode.window.activeTextEditor;
+        //         if (editor && editor.document.languageId === 'xpp') {
+        //             vscode.commands.executeCommand('xpp.toggleComment');
+        //         } else {
+        //             vscode.commands.executeCommand('editor.action.commentLine', args);
+        //         }
+        //     })
+        // );
+
         context.subscriptions.push(
             vscode.commands.registerCommand('editor.action.commentLine', (args) => {
                 const editor = vscode.window.activeTextEditor;
                 if (editor && editor.document.languageId === 'xpp') {
-                    vscode.commands.executeCommand('xpp.toggleComment');
+                    // Directly call your toggleCommentCore function
+                    const document = editor.document;
+                    const selection = editor.selection;
+
+                    const endLine = selection.isEmpty ? selection.start.line : selection.end.line;
+                    const range = new vscode.Range(selection.start.line, 0, endLine + 1, 0); // +1 to include the last line
+
+                    const text = document.getText(range);
+                    const isIncFile = document.fileName.endsWith('.inc');
+                    const newText = toggleCommentCore(text, isIncFile);
+        
+                    editor.edit(editBuilder => {
+                        editBuilder.replace(range, newText);
+                    });
                 } else {
-                    vscode.commands.executeCommand('editor.action.commentLine', args);
+                    // Fall back to the default comment line behavior for other languages
+                    vscode.commands.executeCommand('default:editor.action.commentLine', args);
                 }
             })
         );
