@@ -2,6 +2,6 @@
 
 # test locally
 vsce package
-code --install-extension *.vsix
+code --install-extension xpp-*.vsix
 
 # vsce publish
