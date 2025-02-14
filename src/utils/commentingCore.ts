@@ -1,105 +1,144 @@
-export function toggleCommentCore(input: string, isIncFile: boolean = false): string {
-    let lines = input.split(/(?<=\n)/);
+export interface LineMapping {
+    line: number;
+    originalStart: number;
+    originalEnd: number;
+    newStart: number;
+    newEnd: number;
+    delta: number;
+    // Index (relative to the line) where the “real” text begins.
+    originalContentStart: number;
+    newContentStart: number;
+}
 
-    // Check if ALL lines are comments (ignoring empty lines and special cases like #include)
+export interface ToggleCommentResult {
+    output: string;
+    lineMappings: LineMapping[];
+}
+
+export function toggleCommentCore(input: string, isIncFile: boolean = false): ToggleCommentResult {
+    // Split the input into lines, preserving newline characters.
+    const lines = input.split(/(?<=\n)/);
+
+    // Precompute some booleans based on the whole set of lines.
     const allLinesAreComments = lines.every(line => {
         const trimmedText = line.trim();
         return (
-            trimmedText.length === 0 || // Empty lines are ignored
-            trimmedText.startsWith('#') && // Line is a comment
-            !trimmedText.startsWith('#include') // Ignore #include
+            trimmedText.length === 0 ||
+            (trimmedText.startsWith('#') && !trimmedText.startsWith('#include'))
         );
     });
 
-    // Check if ANY line is a comment (ignoring empty lines and special cases like #include)
     const hasCommentedLine = lines.some(line => {
         const trimmedText = line.trim();
         return (
-            trimmedText.length > 0 && // Ignore empty lines
-            trimmedText.startsWith('#') && // Line is a comment
-            !trimmedText.startsWith('#include') // Ignore #include
+            trimmedText.length > 0 &&
+            trimmedText.startsWith('#') &&
+            !trimmedText.startsWith('#include')
         );
     });
 
-    // Check if ALL lines are valid code (ignoring empty lines)
     const allLinesAreValidCode = lines.every(line => {
         const trimmedText = line.trim();
         return (
-            trimmedText.length === 0 || // Empty lines are ignored
-            !trimmedText.startsWith('#') || // Line is not a comment
-            trimmedText.startsWith('#include') // #include is valid code
+            trimmedText.length === 0 ||
+            !trimmedText.startsWith('#') ||
+            trimmedText.startsWith('#include')
         );
     });
 
-    // Check if ALL lines are empty
     const allLinesAreEmpty = lines.every(line => line.trim().length === 0);
 
-    const commentedLines = lines.map((line) => {
+    const lineMappings: LineMapping[] = [];
+    let originalOffset = 0;
+    let newOffset = 0;
+    
+    
+    // Process each line and record mapping info.
+    const processedLines = lines.map((line, i) => {
+        const origContentStart = line.search(/\S/) === -1 ? 0 : line.search(/\S/);
         const trimmedText = line.replace(/^\s+/, '');
+
+        let newLine: string;
 
         // Handle empty lines
         if (trimmedText.length === 0) {
             if (allLinesAreEmpty) {
-                return `# ${line}`; // Comment empty lines if all lines are empty
+                newLine = `# ${line}`;
             } else if (allLinesAreComments) {
-                return line; // Ignore empty lines if all lines are comments
+                newLine = line;
             } else {
-                return `# ${line}`; // Comment empty lines in mixed code
+                newLine = `# ${line}`;
             }
         }
-
-
         // Handle #include as a special case
-        if (trimmedText.startsWith('#include')) {
-            return `# ${line}`; // Always comment #include
+        else if (trimmedText.startsWith('#include')) {
+            newLine = `# ${line}`;
         }
-
         // Handle #done in .inc files as valid code
-        if (isIncFile && trimmedText.startsWith('#done')) {
-            return `# ${line}`; // Comment #done in .inc files
+        else if (isIncFile && trimmedText.startsWith('#done')) {
+            newLine = `# ${line}`;
         }
-
-        // Handle #done in .ode files as a comment
-        if (!isIncFile && trimmedText.startsWith('#done')) {
+        // Handle #done in non-.inc files as a comment
+        else if (!isIncFile && trimmedText.startsWith('#done')) {
             if (allLinesAreComments) {
-                return line.replace(/^\s*#\s*/, ''); // Uncomment if all lines are comments
+                newLine = line.replace(/^\s*#\s*/, '');
             } else {
-                return `# ${line}`; // Comment if not all lines are comments
+                newLine = `# ${line}`;
             }
         }
-
         // Handle lines with multiple # characters
-        if (trimmedText.startsWith('##')) {
-            return line.replace(/^\s*#/, ''); // Remove one #
+        else if (trimmedText.startsWith('##')) {
+            newLine = line.replace(/^\s*#/, '');
         }
-
-        // Handle lines with # and spaces (e.g., "# done")
-        if (trimmedText.startsWith('# ') && !isIncFile) {
+        // Handle lines with "# " (e.g., "# done") when not in .inc files
+        else if (trimmedText.startsWith('# ')) {
             if (allLinesAreComments) {
-                return line.replace(/^\s*# /, ''); // Uncomment if all lines are comments
+                newLine = trimmedText === '# ' ? "\n" : line.replace(/^\s*# /, '');
             } else {
-                return `# ${line}`; // Comment if not all lines are comments
+                newLine = `# ${line}`;
             }
         }
-
         // Handle general comments
-        if (trimmedText.startsWith('#')) {
+        else if (trimmedText.startsWith('#')) {
             if (allLinesAreComments) {
-                return line.replace(/^\s*#\s*/, ''); // Uncomment if all lines are comments
+                newLine = trimmedText === '#' ? "\n" : line.replace(/^\s*#/, '');
             } else if (hasCommentedLine) {
-                return `# ${line}`; // Add # if any line is a comment
+                newLine = `# ${line}`;
             } else {
-                return line.replace(/^\s*#\s*/, ''); // Uncomment if no lines are comments
+                newLine = line.replace(/^\s*#/, '');
+            }
+        }
+        // Handle valid code
+        else {
+            // In both cases below the logic is the same, but you might change it later.
+            if (hasCommentedLine) {
+                newLine = `# ${line}`;
+            } else {
+                newLine = `# ${line}`;
             }
         }
 
-        // Handle valid code
-        if (hasCommentedLine) {
-            return `# ${line}`; // Add # if any line is a comment
-        } else {
-            return `# ${line}`; // Comment valid code
-        }
+        // Compute content start in the new line.
+        const newContentStart = newLine.search(/\S/) === -1 ? 0 : newLine.search(/\S/);
+
+        const originalLength = line.length;
+        const newLength = newLine.length;
+        const mapping: LineMapping = {
+            line: i,
+            originalStart: originalOffset,
+            originalEnd: originalOffset + originalLength,
+            newStart: newOffset,
+            newEnd: newOffset + newLength,
+            delta: newLength - originalLength,
+            originalContentStart: origContentStart,
+            newContentStart: newContentStart
+        };
+        lineMappings.push(mapping);
+        originalOffset += originalLength;
+        newOffset += newLength;
+        return newLine;
     });
 
-    return commentedLines.join('');
+    return { output: processedLines.join(''), lineMappings };
+
 }

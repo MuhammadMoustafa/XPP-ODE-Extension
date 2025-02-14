@@ -37,7 +37,7 @@ const testCases = [
     {
         description: 'Line with only #',
         input: `#`,
-        expectedOutput: ``, // Lines with only # should be removed
+        expectedOutput: `\n`, // Lines with only # should be removed
         isIncFile: false,
     },
     {
@@ -150,13 +150,31 @@ const testCases = [
         expectedOutput: `#    `, // Comment empty lines
         isIncFile: false,
     },
+    {
+        description: 'Deal with lines that is only # and spaces, single empty space',
+        input:`# `,
+        expectedOutput:`\n`,
+        isIncFile: false,
+    },
+    {
+        description: 'Deal with lines that is only # and spaces, more than one empty space',
+        input:`#  `,
+        expectedOutput:` `,
+        isIncFile: false,
+    },
+    {
+        description: 'Deal with lines that is only # and spaces, Empty line in between',
+        input: `# #include "test.inc"\n# \n# #done`,
+        expectedOutput: `#include "test.inc"\n\n#done`,
+        isIncFile: true,
+    }
 ];
 
 // Run all test cases
 suite('Commenting Core Tests', () => {
     testCases.forEach(({ description, input, expectedOutput, isIncFile }) => {
         test(description, () => {
-            const output = toggleCommentCore(input, isIncFile);
+            const {output: output, lineMappings: lineMappings} = toggleCommentCore(input, isIncFile);
             assert.strictEqual(output, expectedOutput);
         });
     });
