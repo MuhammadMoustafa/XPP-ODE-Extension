@@ -1,5 +1,5 @@
 export function toggleCommentCore(input: string, isIncFile: boolean = false): string {
-    const lines = input.split('\n');
+    let lines = input.split(/(?<=\n)/);
 
     // Check if ALL lines are comments (ignoring empty lines and special cases like #include)
     const allLinesAreComments = lines.every(line => {
@@ -35,7 +35,7 @@ export function toggleCommentCore(input: string, isIncFile: boolean = false): st
     const allLinesAreEmpty = lines.every(line => line.trim().length === 0);
 
     const commentedLines = lines.map((line) => {
-        const trimmedText = line.trim();
+        const trimmedText = line.replace(/^\s+/, '');
 
         // Handle empty lines
         if (trimmedText.length === 0) {
@@ -47,6 +47,7 @@ export function toggleCommentCore(input: string, isIncFile: boolean = false): st
                 return `# ${line}`; // Comment empty lines in mixed code
             }
         }
+
 
         // Handle #include as a special case
         if (trimmedText.startsWith('#include')) {
@@ -75,7 +76,7 @@ export function toggleCommentCore(input: string, isIncFile: boolean = false): st
         // Handle lines with # and spaces (e.g., "# done")
         if (trimmedText.startsWith('# ') && !isIncFile) {
             if (allLinesAreComments) {
-                return line.replace(/^\s*#\s*/, ''); // Uncomment if all lines are comments
+                return line.replace(/^\s*# /, ''); // Uncomment if all lines are comments
             } else {
                 return `# ${line}`; // Comment if not all lines are comments
             }
@@ -100,5 +101,5 @@ export function toggleCommentCore(input: string, isIncFile: boolean = false): st
         }
     });
 
-    return commentedLines.join('\n');
+    return commentedLines.join('');
 }

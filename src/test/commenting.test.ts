@@ -43,7 +43,7 @@ const testCases = [
     {
         description: 'Line with leading/trailing spaces and #',
         input: `  #  `,
-        expectedOutput: `  `, // Remove # and preserve spaces
+        expectedOutput: ` `, // Remove # and next space, preserve other spaces
         isIncFile: false,
     },
 
