@@ -4,6 +4,7 @@
 vsc-extension-quickstart.md
 
 zTrash/
+src/test/
 test_files/
 *.vsix
 *.pat
