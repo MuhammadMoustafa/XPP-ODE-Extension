@@ -10,14 +10,16 @@ All notable changes to this extension will be documented in this file.
 
 ## Version 0.1.0
 
-- Fix commenting and uncommenting of `#done` and `#include`
-- Check for unbalanced parentheses
-- Recognize numbers with scientific notation (e) as numbers in the syntax highlighter
-- Automatically add `done` and `#done` at the end of new `.ode` or `.inc` files
-- Highlight all occurrences of a variable when hovering over it
-- Rename variables and functions using the VS Code renaming shortcut (not yet implemented for `d<var>/dt` format)
-- Highlight most common XPPAUT and AUTO option keywords
-- Improve highlighting for functions and parameters
+- Enable renaming of variables and functions using the VS Code renaming shortcut (except for `d<var>/dt` format, which is not yet implemented).
+- Show an error when a reserved word is used as a variable name.
+- Highlight all occurrences of a variable when hovering over it.
+- Improve syntax highlighting:
+  - Recognize numbers with scientific notation (`e`) as numbers.
+  - Highlight common XPPAUT and AUTO option keywords.
+  - Enhance highlighting for functions and parameters.
+- Check for unbalanced parentheses.
+- Fix issues with commenting and uncommenting `#done` and `#include`.
+- Automatically add `done` and `#done` at the end of new `.ode` or `.inc` files.
 
 ## Future Work
 
