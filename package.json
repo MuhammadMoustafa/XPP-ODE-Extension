@@ -2,7 +2,7 @@
 	"name": "xpp",
 	"displayName": "XPP",
 	"description": "Provides XPP \"ode, inc\" syntax and functionalities for VSCode",
-	"version": "0.1.0",
+	"version": "0.1.1",
 	"publisher": "MuhammadMoustafa",
 	"author": {
 		"name": "Muhammad Moustafa",
