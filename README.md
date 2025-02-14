@@ -33,7 +33,6 @@ Logo disgned by: [Manar Mosutafa](mailto:manarmoustafa246@gmail.com)
 - Highlights comments to improve readability
 - Works with any theme that uses normal scope systems (pretty much all of them)
 
-
 ## Future Work
 
 - Add all XPPAUT and AUTO option keywords
