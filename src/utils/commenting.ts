@@ -105,20 +105,20 @@ import { LineMapping, toggleCommentCore } from './commentingCore';
 
 // Helper function: maps a relative offset (within the replaced range)
 // using the per-line mappings.
-function mapRelativeOffset(relativeOffset: number, mappings: LineMapping[]): number {
-    let remaining = relativeOffset;
-    let newRelOffset = 0;
-    for (const mapping of mappings) {
-        const originalLineLen = mapping.originalEnd - mapping.originalStart;
-        if (remaining <= originalLineLen) {
-            newRelOffset = mapping.newStart + remaining;
-            return newRelOffset;
-        }
-        remaining -= originalLineLen;
-        newRelOffset = mapping.newEnd;
-    }
-    return newRelOffset;
-}
+// function mapRelativeOffset(relativeOffset: number, mappings: LineMapping[]): number {
+//     let remaining = relativeOffset;
+//     let newRelOffset = 0;
+//     for (const mapping of mappings) {
+//         const originalLineLen = mapping.originalEnd - mapping.originalStart;
+//         if (remaining <= originalLineLen) {
+//             newRelOffset = mapping.newStart + remaining;
+//             return newRelOffset;
+//         }
+//         remaining -= originalLineLen;
+//         newRelOffset = mapping.newEnd;
+//     }
+//     return newRelOffset;
+// }
 
 export function toggleComment(args: any): void {
     const editor = vscode.window.activeTextEditor;
@@ -126,63 +126,61 @@ export function toggleComment(args: any): void {
         const document = editor.document;
         const selection = editor.selection;
 
-        // Record original absolute offsets for both start and end of selection.
-        const originalStartOffset = document.offsetAt(selection.start);
-        const originalEndOffset = document.offsetAt(selection.end);
+        // Record original cursor positions (start and end).
+        const originalStartPos = selection.start;
+        const originalEndPos = selection.end;
 
+        // Get the range of the selected lines.
         const startLine = selection.start.line;
         const endLine = selection.isEmpty ? selection.start.line : selection.end.line;
-        // Include the entire lines
         const range = new vscode.Range(startLine, 0, endLine + 1, 0);
-        const rangeStartOffset = document.offsetAt(new vscode.Position(startLine, 0));
 
+        // Get the text within the range.
         const text = document.getText(range);
         const isIncFile = document.fileName.endsWith('.inc');
         const { output: newText, lineMappings } = toggleCommentCore(text, isIncFile);
 
-        // Helper to map an absolute offset (within the replaced range) to a new offset.
-        function mapOffset(originalAbsOffset: number): number {
-            const relativeOffset = originalAbsOffset - rangeStartOffset;
-            // Determine which line this falls into.
-            // Since our mappings array is per line in the range:
-            let mapping: LineMapping | undefined;
-            for (const m of lineMappings) {
-                if (relativeOffset >= (m.originalStart - rangeStartOffset) && relativeOffset <= (m.originalEnd - rangeStartOffset)) {
-                    mapping = m;
-                    break;
-                }
-            }
+        // Helper to map a cursor position to its new position after toggling comments.
+        function mapCursorPosition(originalPos: vscode.Position): vscode.Position {
+            const line = originalPos.line - startLine; // Adjust for the range start.
+            const character = originalPos.character;
+
+            // Find the corresponding line mapping.
+            const mapping = lineMappings[line];
             if (!mapping) {
-                // If not found, fallback.
-                return relativeOffset;
+                // If no mapping is found, return the original position.
+                return originalPos;
             }
-            // Compute offset relative to the start of this line.
-            const lineRelative = relativeOffset - (mapping.originalStart - rangeStartOffset);
-            // If the caret is within the content region, adjust relative to content.
-            let newLineRelative: number;
-            if (lineRelative >= mapping.originalContentStart) {
-                newLineRelative = mapping.newContentStart + (lineRelative - mapping.originalContentStart);
+
+            // Calculate the new character position.
+            let newCharacter: number;
+            if (character >= mapping.originalContentStart) {
+                // If the cursor is within the content region, adjust it relative to the new content start.
+                newCharacter = mapping.newContentStart + (character - mapping.originalContentStart);
             } else {
-                newLineRelative = lineRelative;
+                // If the cursor is outside the content region (e.g., in leading whitespace), keep it as-is.
+                newCharacter = character;
             }
-            return (mapping.newStart - rangeStartOffset) + newLineRelative;
+
+            // Return the new position.
+            return new vscode.Position(originalPos.line, newCharacter);
         }
 
-        const newRelStart = mapOffset(originalStartOffset);
-        const newRelEnd = mapOffset(originalEndOffset);
-        const newAbsoluteStart = rangeStartOffset + newRelStart;
-        const newAbsoluteEnd = rangeStartOffset + newRelEnd;
+        // Calculate the new cursor positions.
+        const newStartPos = mapCursorPosition(originalStartPos);
+        const newEndPos = mapCursorPosition(originalEndPos);
 
+        // Apply the changes to the document.
         editor.edit(editBuilder => {
             editBuilder.replace(range, newText);
         }).then(success => {
             if (success) {
-                const newStartPos = document.positionAt(newAbsoluteStart);
-                const newEndPos = document.positionAt(newAbsoluteEnd);
+                // Update the cursor positions.
                 editor.selection = new vscode.Selection(newStartPos, newEndPos);
             }
         });
     } else {
+        // Fallback to the default comment toggling behavior if the language is not 'xpp'.
         vscode.commands.executeCommand('default:editor.action.commentLine', args);
     }
 }
