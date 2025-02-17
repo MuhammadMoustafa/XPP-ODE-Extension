@@ -32,7 +32,11 @@
         },
         {
           "name": "keyword.other.reserved.xpp",
-          "match": "(?i)\\b(parameter|param|par|bdry|bndry|volt|init|aux|global|markov|wiener|table|done|include)\\b"
+          "match": "(?i)^(parameter|param|par|bdry|bndry|volt|init|aux|global|markov|wiener|table|done|#done|#include)\\b"
+        },
+        {
+          "name": "keyword.other.reserved_abbreviated.xpp",
+          "match": "(?i)^[mpwtaibgd](?= \\w)"
         },
         {
           "name": "keyword.other.reserved.xpp.options",
@@ -80,7 +84,7 @@
         {
           "name": "meta.function.xpp",
           "begin": "\\b([a-zA-Z_][a-zA-Z0-9_]*)\\s*\\(",
-		  "end": "\\)\\s*(=|\\n)",
+          "end": "\\)\\s*(=|\\n)",
           "beginCaptures": {
             "1": { "name": "entity.name.function.xpp" }
           },
@@ -88,9 +92,9 @@
             "0": { "name": "keyword.operator.assignment.xpp" }
           },
           "patterns": [
-			{
-			  "name": "variable.parameter.xpp",
-			  "match": "\\b([a-zA-Z_][a-zA-Z0-9_]*)\\b(?!\\s*\\n)"
+            {
+              "name": "variable.parameter.xpp",
+              "match": "\\b([a-zA-Z_][a-zA-Z0-9_]*)\\b(?!\\s*\\n)"
             },
             {
               "name": "punctuation.separator.xpp",
@@ -161,7 +165,7 @@
         },
         {
           "name": "constant.language.xpp",
-          "match": "(?i)\\b(pi|t|e)\\b"
+          "match": "(?i)\\b(pi|t)\\b"
         }
       ]
     },

@@ -5,7 +5,7 @@ export const reservedWords = new Set([
     "maxstor", "back", "small", "big", "smc", "umc", "xnc", "ync", "but", "ds", "dsmin", "dsmax",
     "include", "done", "sin", "cos", "tan", "atan", "atan2", "sinh", "cosh", "tanh", "exp", "delay", "ln", "log", "log10",
     "t", "pi", "if", "then", "else", "asin", "acos", "heav", "sign", "ceil", "flr", "ran", "abs", "del_shft", "max", "min",
-    "normal", "besselj", "bessely", "erf", "erfc", "hom_bcs", "sum", "shift", "not", "@", "$", "e"
+    "normal", "besselj", "bessely", "erf", "erfc", "hom_bcs", "sum", "shift", "not", "@", "$",
 ]);
 
 export const supportedFiles = (document: vscode.TextDocument) => {
