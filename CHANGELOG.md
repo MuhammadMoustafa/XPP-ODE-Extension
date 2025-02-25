@@ -2,6 +2,12 @@
 
 All notable changes to this extension will be documented in this file.
 
+## Version 0.2.1
+
+- Improved comment functionality to avoid affecting other file extensions.
+- Extension now activates on VS Code startup, ensuring it works with newly created `.ode` and `.inc` files.
+- "Run ODE File" button now appears only in the editor bar.
+
 ## Version 0.2.0
 
 - Added "Run ODE File" Button.

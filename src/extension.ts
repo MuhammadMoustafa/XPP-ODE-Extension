@@ -53,7 +53,14 @@ export function activate(context: vscode.ExtensionContext) {
         })
     );
 
-    vscode.commands.registerCommand('editor.action.commentLine', toggleComment);
+    // Register comment command only for XPP files
+    let disposable = vscode.commands.registerTextEditorCommand('xpp.toggleComment', (editor) => {
+        if (editor.document.languageId === 'xpp') {
+            toggleComment(editor);
+        }
+    });
+
+    context.subscriptions.push(disposable);
 
     // Initialize the RunOdeFileProvider
     new RunOdeFileProvider(context);

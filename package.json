@@ -2,7 +2,7 @@
 	"name": "xpp",
 	"displayName": "XPP",
 	"description": "Provides XPP \"ode, inc\" syntax and functionalities for VSCode",
-	"version": "0.2.0",
+	"version": "0.2.1",
 	"publisher": "MuhammadMoustafa",
 	"author": {
 		"name": "Muhammad Moustafa",
@@ -32,10 +32,7 @@
 		"vscode": "^1.82.0"
 	},
 	"activationEvents": [
-		"onSave",
-		"onCreate",
-		"onOpen",
-		"onChange"
+		"onStartupFinished"
 	],
 	"categories": [
 		"Programming Languages"
@@ -73,6 +70,11 @@
 			{
 				"command": "xpp.extractVariable",
 				"title": "XPP: Extract to Variable"
+			},
+			{
+				"command": "xpp.toggleComment",
+				"title": "Toggle Comment",
+				"category": "XPP-ODE"
 			}
 		],
 		"menus": {
@@ -83,13 +85,7 @@
 					"when": "resourceLangId == xpp"
 				}
 			],
-			"view/title": [
-				{
-					"command": "xpp.runOdeFile",
-					"group": "navigation"
-				}
-			],
-			"editor/context": [
+				"editor/context": [
 				{
 					"when": "editorHasSelection && editorLangId == xpp",
 					"command": "xpp.extractVariable",
@@ -106,6 +102,13 @@
 					"description": "Command to run XPP-ODE files. Default is 'xppaut'"
 				}
 			}
-		}
+		},
+		"keybindings": [
+			{
+				"command": "xpp.toggleComment",
+				"key": "ctrl+/",
+				"when": "editorTextFocus && editorLangId == xpp"
+			}
+		]
 	}
 }
