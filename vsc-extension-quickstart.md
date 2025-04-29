@@ -35,3 +35,9 @@
 * Build the package: `vsce package`
 * To test locally: `code --install-extension <your-vsix-file>`
 * To publish: `vsce publish`
+
+## Run Tests
+
+* npm test
+* Run specific test: npm test -- -g "should find all occurrences of a variable across different notations"
+* npx mocha -r ts-node/register test/rename.test.ts -g "should find all occurrences of a variable across different notations"
