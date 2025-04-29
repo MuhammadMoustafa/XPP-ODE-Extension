@@ -18,7 +18,7 @@
 	"scripts": {
 		"vscode:prepublish": "npm run compile",
 		"compile": "tsc -p ./",
-		"test": "mocha --require ts-node/register --ui tdd src/test/**/*.test.ts"
+		"test": "mocha --require ts-node/register --ui tdd test/*.test.ts"
 	},
 	"devDependencies": {
 		"@types/mocha": "^10.0.10",
@@ -83,9 +83,9 @@
 					"command": "xpp.runOdeFile",
 					"group": "navigation",
 					"when": "resourceLangId == xpp"
-				}
+					}
 			],
-				"editor/context": [
+			"editor/context": [
 				{
 					"when": "editorHasSelection && editorLangId == xpp",
 					"command": "xpp.extractVariable",
@@ -100,6 +100,20 @@
 					"type": "string",
 					"default": "xppaut",
 					"description": "Command to run XPP-ODE files. Default is 'xppaut'"
+				},
+				"xpp-ode.performance": {
+					"type": "object",
+					"default": {
+						"debounceDelay": 300
+					},
+					"description": "Performance-related settings",
+					"properties": {
+						"debounceDelay": {
+							"type": "number",
+							"default": 300,
+							"description": "Delay in milliseconds before updating diagnostics after text changes"
+						}
+					}
 				}
 			}
 		},

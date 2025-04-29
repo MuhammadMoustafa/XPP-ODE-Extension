@@ -1,5 +1,5 @@
 import * as assert from 'assert';
-import { toggleCommentCore } from '../utils/commentingCore';
+import { toggleCommentCore } from '../src/utils/commentingCore';
 
 // Define test cases as an array of objects
 const testCases = [

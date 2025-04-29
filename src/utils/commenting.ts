@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { LineMapping, toggleCommentCore } from './commentingCore';
+import { toggleCommentCore } from './commentingCore';
 
 export function toggleComment(args: any): void {
     const editor = vscode.window.activeTextEditor;

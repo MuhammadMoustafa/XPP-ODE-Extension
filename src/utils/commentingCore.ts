@@ -1,4 +1,4 @@
-export interface LineMapping {
+interface LineMapping {
     line: number;
     originalStart: number;
     originalEnd: number;
