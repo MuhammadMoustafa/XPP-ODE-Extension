@@ -6,6 +6,8 @@ export class DiagnosticManager {
     private diagnosticCollection: vscode.DiagnosticCollection;
     private parenthesesChecker: ParenthesesChecker;
     private variableChecker: VariableChecker;
+    private debounceTimer: NodeJS.Timeout | undefined;
+    private documentQueue: Set<vscode.TextDocument> = new Set();
 
     constructor() {
         this.diagnosticCollection = vscode.languages.createDiagnosticCollection('xpp');
@@ -13,7 +15,45 @@ export class DiagnosticManager {
         this.variableChecker = new VariableChecker();
     }
 
+    /**
+     * Schedules a file check with debouncing for better performance.
+     * Use this method for responding to typing and other frequent changes.
+     */
+    public scheduleCheckFile(document: vscode.TextDocument): void {
+        // Add document to queue
+        this.documentQueue.add(document);
+        
+        // Clear existing timer
+        if (this.debounceTimer) {
+            clearTimeout(this.debounceTimer);
+        }
+        
+        // Set new timer
+        this.debounceTimer = setTimeout(() => {
+            // Process all documents in queue
+            this.documentQueue.forEach(doc => {
+                this.processFile(doc);
+            });
+            // Clear queue
+            this.documentQueue.clear();
+        }, 300); // 300ms debounce delay
+    }
+
+    /**
+     * Immediately checks a file without debouncing.
+     * Use this method for one-time operations like file open/save where
+     * immediate feedback is important.
+     */
     public checkFile(document: vscode.TextDocument): void {
+        this.processFile(document);
+    }
+
+    /**
+     * Internal method that performs the actual diagnostic checks.
+     * This is separated from the public methods to avoid code duplication
+     * between the debounced and immediate check paths.
+     */
+    private processFile(document: vscode.TextDocument): void {
         const diagnostics: vscode.Diagnostic[] = [
             ...this.checkEndDirectives(document),
             ...this.parenthesesChecker.check(document),
@@ -45,6 +85,9 @@ export class DiagnosticManager {
     }
     
     public dispose() {
+        if (this.debounceTimer) {
+            clearTimeout(this.debounceTimer);
+        }
         this.diagnosticCollection.dispose();
     }
 }

@@ -23,6 +23,7 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(
         vscode.workspace.onDidSaveTextDocument((document) => {
             if (supportedFiles(document)) {
+                // On save, we want immediate feedback so use checkFile
                 diagnosticManager.checkFile(document);
             }
         }),
@@ -33,7 +34,8 @@ export function activate(context: vscode.ExtensionContext) {
         }),
         vscode.workspace.onDidChangeTextDocument((event) => {
             if (supportedFiles(event.document)) {
-                diagnosticManager.checkFile(event.document);
+                // For changes, use debounced version
+                diagnosticManager.scheduleCheckFile(event.document);
             }
         }),
         vscode.languages.registerRenameProvider(
