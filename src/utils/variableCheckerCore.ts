@@ -84,21 +84,30 @@ export function checkVariablesAndParameters(text: string): VariableCheckerResult
         if (paramMatch) {
             const paramList = paramMatch[2];
             const params = paramList.split(',').map(p => {
-                const paramName = p.split('=')[0].trim().toLowerCase();
+                const paramName = p.split('=')[0].trim();
+                const paramNameLower = paramName.toLowerCase();
                 // Find where this specific parameter appears in the original parameter list
-                const paramIndex = paramList.toLowerCase().indexOf(paramName);
+                const paramIndex = paramList.toLowerCase().indexOf(paramNameLower);
                 // Calculate the absolute position by adding the prefix length
                 const prefixLength = trimmed.indexOf(paramList);
                 const start = prefixLength + paramIndex;
-                return { name: paramName, start, end: start + paramName.length };
+                return { name: paramName, nameLower: paramNameLower, start, end: start + paramName.length };
             });
-            
-            params.forEach(({ name, start, end }) => {
-                if (parameterNames.has(name)) {
+
+            params.forEach(({ name, nameLower, start, end }) => {
+                if (reservedWords.has(nameLower)) {
+                    addDiagnostic('reserved-word', `Reserved word used as parameter name: ${name}`, i, start, end);
+                }
+                if (parameterNames.has(nameLower)) {
                     addDiagnostic('duplicate-parameter', `Duplicate parameter name: '${name}'`, i, start, end);
                 } else {
-                    parameterNames.add(name);
-                    checkNameConflict(name, i, start, end, 'parameter');
+                    parameterNames.add(nameLower);
+                }
+                if (variableNames.has(nameLower)) {
+                    addDiagnostic('conflict', `Parameter name '${name}' conflicts with variable name: '${name}'`, i, start, end);
+                }
+                if (functionNames.has(nameLower)) {
+                    addDiagnostic('conflict', `Parameter name '${name}' conflicts with function name: '${name}'`, i, start, end);
                 }
             });
             return;
@@ -107,11 +116,11 @@ export function checkVariablesAndParameters(text: string): VariableCheckerResult
         // Handle initial conditions like "V(0) = 0" - don't check for conflicts
         const initCondMatch = trimmed.match(/^([a-zA-Z_][a-zA-Z0-9_]*)\s*\(\s*0\s*\)\s*=/i);
         if (initCondMatch) {
-            const varName = initCondMatch[1].toLowerCase();
-            // Only check for reserved words, but no duplicate/conflict check for initial conditions
-            if (reservedWords.has(varName)) {
+            const varName = initCondMatch[1];
+            const varNameLower = varName.toLowerCase();
+            if (reservedWords.has(varNameLower)) {
                 const start = trimmed.indexOf(varName);
-                addDiagnostic('reserved-word', `Reserved word used as variable name: '${varName}'`, i, start, start + varName.length);
+                addDiagnostic('reserved-word', `Reserved word used as variable name: ${varName}`, i, start, start + varName.length);
             }
             return;
         }
@@ -120,8 +129,24 @@ export function checkVariablesAndParameters(text: string): VariableCheckerResult
         const funcNotationMatch = trimmed.match(/^([a-zA-Z_][a-zA-Z0-9_]*)\s*\(\s*t\s*\)\s*=/i);
         if (funcNotationMatch) {
             const varName = funcNotationMatch[1];
+            const varNameLower = varName.toLowerCase();
             const start = trimmed.indexOf(varName);
-            handleDifferentialEquation(varName, i, start, 'function');
+            // Check reserved word
+            if (reservedWords.has(varNameLower)) {
+                addDiagnostic('reserved-word', `Reserved word used as variable name: ${varName}`, i, start, start + varName.length);
+            }
+            // Check conflicts
+            if (parameterNames.has(varNameLower)) {
+                addDiagnostic('conflict', `Variable name '${varName}' conflicts with parameter name: '${varName}'`, i, start, start + varName.length);
+            }
+            if (functionNames.has(varNameLower)) {
+                addDiagnostic('conflict', `Variable name '${varName}' conflicts with function name: '${varName}'`, i, start, start + varName.length);
+            }
+            if (variableNames.has(varNameLower)) {
+                addDiagnostic('duplicate-variable', `Duplicate variable name: '${varName}'`, i, start, start + varName.length);
+            } else {
+                variableNames.add(varNameLower);
+            }
             return;
         }
 
@@ -129,21 +154,44 @@ export function checkVariablesAndParameters(text: string): VariableCheckerResult
         const primeMatch = trimmed.match(/^([a-zA-Z_][a-zA-Z0-9_]*)'\s*=/i);
         if (primeMatch) {
             const varName = primeMatch[1];
+            const varNameLower = varName.toLowerCase();
             const start = trimmed.indexOf(varName);
-            handleDifferentialEquation(varName, i, start, 'prime');
+            if (reservedWords.has(varNameLower)) {
+                addDiagnostic('reserved-word', `Reserved word used as variable name: ${varName}`, i, start, start + varName.length);
+            }
+            if (parameterNames.has(varNameLower)) {
+                addDiagnostic('conflict', `Variable name '${varName}' conflicts with parameter name: '${varName}'`, i, start, start + varName.length);
+            }
+            if (functionNames.has(varNameLower)) {
+                addDiagnostic('conflict', `Variable name '${varName}' conflicts with function name: '${varName}'`, i, start, start + varName.length);
+            }
+            if (variableNames.has(varNameLower)) {
+                addDiagnostic('duplicate-variable', `Duplicate variable name: '${varName}'`, i, start, start + varName.length);
+            } else {
+                variableNames.add(varNameLower);
+            }
             return;
         }
 
         // Handle regular variable assignments
         const varMatch = trimmed.match(/^([a-zA-Z_][a-zA-Z0-9_]*)\s*=/);
         if (varMatch) {
-            const variable = varMatch[1].toLowerCase();
+            const variable = varMatch[1];
+            const variableLower = variable.toLowerCase();
             const start = varMatch.index || 0;
-            if (variableNames.has(variable)) {
+            if (reservedWords.has(variableLower)) {
+                addDiagnostic('reserved-word', `Reserved word used as variable name: ${variable}`, i, start, start + variable.length);
+            }
+            if (parameterNames.has(variableLower)) {
+                addDiagnostic('conflict', `Variable name '${variable}' conflicts with parameter name: '${variable}'`, i, start, start + variable.length);
+            }
+            if (functionNames.has(variableLower)) {
+                addDiagnostic('conflict', `Variable name '${variable}' conflicts with function name: '${variable}'`, i, start, start + variable.length);
+            }
+            if (variableNames.has(variableLower)) {
                 addDiagnostic('duplicate-variable', `Duplicate variable name: '${variable}'`, i, start, start + variable.length);
             } else {
-                variableNames.add(variable);
-                checkNameConflict(variable, i, start, start + variable.length, 'variable');
+                variableNames.add(variableLower);
             }
             return;
         }
@@ -152,22 +200,44 @@ export function checkVariablesAndParameters(text: string): VariableCheckerResult
         const derivMatch = trimmed.match(/^d([a-zA-Z_][a-zA-Z0-9_]*)\/dt\s*=/);
         if (derivMatch) {
             const varName = derivMatch[1];
+            const varNameLower = varName.toLowerCase();
             const start = derivMatch.index || 1;
-            // +1 offset because we need to skip the 'd' prefix to get to the actual variable name
-            handleDifferentialEquation(varName, i, start, 'standard', 1, 0);
+            if (reservedWords.has(varNameLower)) {
+                addDiagnostic('reserved-word', `Reserved word used as variable name: ${varName}`, i, start + 1, start + 1 + varName.length);
+            }
+            if (parameterNames.has(varNameLower)) {
+                addDiagnostic('conflict', `Variable name '${varName}' conflicts with parameter name: '${varName}'`, i, start + 1, start + 1 + varName.length);
+            }
+            if (functionNames.has(varNameLower)) {
+                addDiagnostic('conflict', `Variable name '${varName}' conflicts with function name: '${varName}'`, i, start + 1, start + 1 + varName.length);
+            }
+            if (variableNames.has(varNameLower)) {
+                addDiagnostic('duplicate-variable', `Duplicate variable name: '${varName}'`, i, start + 1, start + 1 + varName.length);
+            } else {
+                variableNames.add(varNameLower);
+            }
             return;
         }
 
         // Handle function definitions
         const funcMatch = trimmed.match(/^([a-zA-Z_][a-zA-Z0-9_]*)\s*\(([^)]*)\)\s*=/);
         if (funcMatch) {
-            const funcName = funcMatch[1].toLowerCase();
+            const funcName = funcMatch[1];
+            const funcNameLower = funcName.toLowerCase();
             const start = trimmed.indexOf(funcName);
-            if (functionNames.has(funcName)) {
+            if (reservedWords.has(funcNameLower)) {
+                addDiagnostic('reserved-word', `Reserved word used as function name: ${funcName}`, i, start, start + funcName.length);
+            }
+            if (functionNames.has(funcNameLower)) {
                 addDiagnostic('conflict', `Duplicate function name: '${funcName}'`, i, start, start + funcName.length);
             } else {
-                functionNames.add(funcName);
-                checkNameConflict(funcName, i, start, start + funcName.length, 'variable');
+                functionNames.add(funcNameLower);
+            }
+            if (parameterNames.has(funcNameLower)) {
+                addDiagnostic('conflict', `Function name '${funcName}' conflicts with parameter name: '${funcName}'`, i, start, start + funcName.length);
+            }
+            if (variableNames.has(funcNameLower)) {
+                addDiagnostic('conflict', `Function name '${funcName}' conflicts with variable name: '${funcName}'`, i, start, start + funcName.length);
             }
         }
     });

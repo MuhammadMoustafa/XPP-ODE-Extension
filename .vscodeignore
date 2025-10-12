@@ -10,4 +10,14 @@ test_files/
 *.pat
 tsconfig.json
 *.sh
+*.md
+!LICENSE.md
 src/
+
+**/test/**
+**/*.map
+**/*.ts
+.vscode/**
+.git/**
+node_modules/**/.bin
+coverage/**

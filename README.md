@@ -15,6 +15,11 @@ To learn how to customize the xppaut start command please refer to [How to Custo
 
 ---
 
+## Version 3.0.0
+
+- All derivative formats are now renamed and highlighted correctly. (Please report any malfunction cases.)
+- Limit renaming of function parameters to the function's scope.
+
 ## Version 0.2.1
 
 - Bug fixes: Improved comment functionality to avoid affecting other file extensions.
@@ -78,7 +83,6 @@ To learn how to customize the xppaut start command please refer to [How to Custo
 - Detect undefined variables.
 - Detect unused variables and gray them out.
 - Handle active comments.
-- Limit renaming of function parameters to the function's scope.
 
 ---
 
