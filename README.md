@@ -15,7 +15,9 @@ To learn how to customize the xppaut start command please refer to [How to Custo
 
 ---
 
-## Version 3.0.0
+## Version 0.4.0
+
+## Version 0.3.0
 
 - All derivative formats are now renamed and highlighted correctly. (Please report any malfunction cases.)
 - Limit renaming of function parameters to the function's scope.
