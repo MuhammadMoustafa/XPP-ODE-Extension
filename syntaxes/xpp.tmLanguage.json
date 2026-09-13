@@ -2,6 +2,7 @@
   "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
   "name": "XPP",
   "patterns": [
+    { "include": "#trailer" },
     { "include": "#constants" },
     { "include": "#keywords" },
     { "include": "#derivatives" },
@@ -12,6 +13,16 @@
     { "include": "#operators" }
   ],
   "repository": {
+    "trailer": {
+      "comment": "XPP stops reading at the first 'done' (any word starting with 'd' alone on a line) or '#done'; everything after it is free text.",
+      "begin": "(?i)^\\s*(#done|d[a-z0-9_]*\\b(?=\\s*(?:$|[^=\\s'(\\[/])))(.*)$",
+      "beginCaptures": {
+        "1": { "name": "keyword.other.reserved.xpp" },
+        "2": { "name": "comment.line.after-done.xpp" }
+      },
+      "end": "(?=never)matches",
+      "contentName": "comment.block.after-done.xpp"
+    },
     "keywords": {
       "patterns": [
         {
@@ -32,7 +43,7 @@
         },
         {
           "name": "keyword.other.reserved.xpp",
-          "match": "(?i)^(#done|#include|d[a-z]*(?=\\s*$)|(?:p|i|w|n|g|b|v|o|au|ma|ta|se|so|sp|ex|im|on)[a-z]*(?=\\s+[a-z_0-9{]))"
+          "match": "(?i)^(#done|#include|d[a-z0-9_]*\\b(?=\\s*(?:$|[^=\\s'(\\[/]))|(?:p|i|w|n|g|b|v|o|au|ma|ta|se|so|sp|ex|im|on)[a-z]*(?=\\s+[a-z_0-9{]))"
         },
         {
           "name": "keyword.other.reserved.xpp.options",

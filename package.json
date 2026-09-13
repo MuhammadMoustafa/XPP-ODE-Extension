@@ -106,9 +106,373 @@
 					"default": 300,
 					"minimum": 0,
 					"description": "Delay in milliseconds before updating diagnostics after text changes."
+				},
+				"xpp-ode.identifierColors": {
+					"type": "object",
+					"default": {},
+					"markdownDescription": "Colours and styles for specific variables, parameters or functions, independent of the theme. Keys are XPP names (case-insensitive) or a category: `@states`, `@parameters`, `@fixed`, `@functions`, `@aux`, `@wiener`, `@markov`, `@tables`, `@options`, `@builtins`, `@keywords`. Values are a hex colour (`\"#ff8800\"`) or a style object with any of `color`, `backgroundColor`, `fontWeight`, `fontStyle`, `textDecoration`, `opacity`, `borderColor`, `borderStyle`, `borderWidth`, `borderRadius`, plus optional `light` / `dark` objects with theme-specific overrides. Put the setting in a workspace `.vscode/settings.json`, or create a `.xppcolors.json` file with the same content in a folder, to style every `.ode`/`.inc` file in that folder.",
+					"additionalProperties": {
+						"anyOf": [
+							{
+								"type": "string",
+								"pattern": "^#([0-9a-fA-F]{3}|[0-9a-fA-F]{4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$",
+								"description": "Hex colour: #rgb, #rrggbb or #rrggbbaa"
+							},
+							{
+								"type": "object",
+								"additionalProperties": false,
+								"properties": {
+									"color": {
+										"type": "string",
+										"pattern": "^#([0-9a-fA-F]{3}|[0-9a-fA-F]{4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$",
+										"description": "Text colour: #rgb, #rrggbb or #rrggbbaa"
+									},
+									"backgroundColor": {
+										"type": "string",
+										"pattern": "^#([0-9a-fA-F]{3}|[0-9a-fA-F]{4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$",
+										"description": "Background colour: #rgb, #rrggbb or #rrggbbaa"
+									},
+									"fontStyle": {
+										"type": "string",
+										"enum": [
+											"normal",
+											"italic"
+										]
+									},
+									"fontWeight": {
+										"type": "string",
+										"enum": [
+											"normal",
+											"bold"
+										]
+									},
+									"textDecoration": {
+										"type": "string",
+										"description": "CSS text-decoration, e.g. \"underline\", \"line-through\" or \"underline wavy\""
+									},
+									"opacity": {
+										"type": "number",
+										"minimum": 0,
+										"maximum": 1
+									},
+									"light": {
+										"type": "object",
+										"additionalProperties": false,
+										"properties": {
+											"color": {
+												"type": "string",
+												"pattern": "^#([0-9a-fA-F]{3}|[0-9a-fA-F]{4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$",
+												"description": "Text colour: #rgb, #rrggbb or #rrggbbaa"
+											},
+											"backgroundColor": {
+												"type": "string",
+												"pattern": "^#([0-9a-fA-F]{3}|[0-9a-fA-F]{4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$",
+												"description": "Background colour: #rgb, #rrggbb or #rrggbbaa"
+											},
+											"fontStyle": {
+												"type": "string",
+												"enum": [
+													"normal",
+													"italic"
+												]
+											},
+											"fontWeight": {
+												"type": "string",
+												"enum": [
+													"normal",
+													"bold"
+												]
+											},
+											"textDecoration": {
+												"type": "string",
+												"description": "CSS text-decoration, e.g. \"underline\", \"line-through\" or \"underline wavy\""
+											},
+											"opacity": {
+												"type": "number",
+												"minimum": 0,
+												"maximum": 1
+											},
+											"borderColor": {
+												"type": "string",
+												"pattern": "^#([0-9a-fA-F]{3}|[0-9a-fA-F]{4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$",
+												"description": "Box colour: #rgb, #rrggbb or #rrggbbaa. Alone it gives a 1px solid box."
+											},
+											"borderStyle": {
+												"type": "string",
+												"enum": [
+													"solid",
+													"dashed",
+													"dotted",
+													"double"
+												]
+											},
+											"borderWidth": {
+												"type": [
+													"string",
+													"number"
+												],
+												"pattern": "^\\d+(\\.\\d+)?(px|em|rem|%)?$",
+												"description": "Box line width, e.g. \"1px\""
+											},
+											"borderRadius": {
+												"type": [
+													"string",
+													"number"
+												],
+												"pattern": "^\\d+(\\.\\d+)?(px|em|rem|%)?$",
+												"description": "Box corner radius, e.g. \"3px\""
+											}
+										}
+									},
+									"dark": {
+										"type": "object",
+										"additionalProperties": false,
+										"properties": {
+											"color": {
+												"type": "string",
+												"pattern": "^#([0-9a-fA-F]{3}|[0-9a-fA-F]{4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$",
+												"description": "Text colour: #rgb, #rrggbb or #rrggbbaa"
+											},
+											"backgroundColor": {
+												"type": "string",
+												"pattern": "^#([0-9a-fA-F]{3}|[0-9a-fA-F]{4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$",
+												"description": "Background colour: #rgb, #rrggbb or #rrggbbaa"
+											},
+											"fontStyle": {
+												"type": "string",
+												"enum": [
+													"normal",
+													"italic"
+												]
+											},
+											"fontWeight": {
+												"type": "string",
+												"enum": [
+													"normal",
+													"bold"
+												]
+											},
+											"textDecoration": {
+												"type": "string",
+												"description": "CSS text-decoration, e.g. \"underline\", \"line-through\" or \"underline wavy\""
+											},
+											"opacity": {
+												"type": "number",
+												"minimum": 0,
+												"maximum": 1
+											},
+											"borderColor": {
+												"type": "string",
+												"pattern": "^#([0-9a-fA-F]{3}|[0-9a-fA-F]{4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$",
+												"description": "Box colour: #rgb, #rrggbb or #rrggbbaa. Alone it gives a 1px solid box."
+											},
+											"borderStyle": {
+												"type": "string",
+												"enum": [
+													"solid",
+													"dashed",
+													"dotted",
+													"double"
+												]
+											},
+											"borderWidth": {
+												"type": [
+													"string",
+													"number"
+												],
+												"pattern": "^\\d+(\\.\\d+)?(px|em|rem|%)?$",
+												"description": "Box line width, e.g. \"1px\""
+											},
+											"borderRadius": {
+												"type": [
+													"string",
+													"number"
+												],
+												"pattern": "^\\d+(\\.\\d+)?(px|em|rem|%)?$",
+												"description": "Box corner radius, e.g. \"3px\""
+											}
+										}
+									},
+									"borderColor": {
+										"type": "string",
+										"pattern": "^#([0-9a-fA-F]{3}|[0-9a-fA-F]{4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$",
+										"description": "Box colour: #rgb, #rrggbb or #rrggbbaa. Alone it gives a 1px solid box."
+									},
+									"borderStyle": {
+										"type": "string",
+										"enum": [
+											"solid",
+											"dashed",
+											"dotted",
+											"double"
+										]
+									},
+									"borderWidth": {
+										"type": [
+											"string",
+											"number"
+										],
+										"pattern": "^\\d+(\\.\\d+)?(px|em|rem|%)?$",
+										"description": "Box line width, e.g. \"1px\""
+									},
+									"borderRadius": {
+										"type": [
+											"string",
+											"number"
+										],
+										"pattern": "^\\d+(\\.\\d+)?(px|em|rem|%)?$",
+										"description": "Box corner radius, e.g. \"3px\""
+									}
+								}
+							}
+						]
+					},
+					"properties": {
+						"@states": {
+							"anyOf": [
+								{
+									"type": "string",
+									"pattern": "^#([0-9a-fA-F]{3}|[0-9a-fA-F]{4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$"
+								},
+								{
+									"type": "object"
+								}
+							],
+							"description": "State variables (x'=, dx/dt=, x(t+1)=, solv) everywhere they are used"
+						},
+						"@parameters": {
+							"anyOf": [
+								{
+									"type": "string",
+									"pattern": "^#([0-9a-fA-F]{3}|[0-9a-fA-F]{4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$"
+								},
+								{
+									"type": "object"
+								}
+							],
+							"description": "par / number parameters and !name= derived parameters"
+						},
+						"@fixed": {
+							"anyOf": [
+								{
+									"type": "string",
+									"pattern": "^#([0-9a-fA-F]{3}|[0-9a-fA-F]{4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$"
+								},
+								{
+									"type": "object"
+								}
+							],
+							"description": "Fixed variables (name=expression)"
+						},
+						"@functions": {
+							"anyOf": [
+								{
+									"type": "string",
+									"pattern": "^#([0-9a-fA-F]{3}|[0-9a-fA-F]{4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$"
+								},
+								{
+									"type": "object"
+								}
+							],
+							"description": "User functions f(x)="
+						},
+						"@aux": {
+							"anyOf": [
+								{
+									"type": "string",
+									"pattern": "^#([0-9a-fA-F]{3}|[0-9a-fA-F]{4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$"
+								},
+								{
+									"type": "object"
+								}
+							],
+							"description": "aux quantities"
+						},
+						"@wiener": {
+							"anyOf": [
+								{
+									"type": "string",
+									"pattern": "^#([0-9a-fA-F]{3}|[0-9a-fA-F]{4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$"
+								},
+								{
+									"type": "object"
+								}
+							],
+							"description": "wiener variables"
+						},
+						"@markov": {
+							"anyOf": [
+								{
+									"type": "string",
+									"pattern": "^#([0-9a-fA-F]{3}|[0-9a-fA-F]{4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$"
+								},
+								{
+									"type": "object"
+								}
+							],
+							"description": "markov variables"
+						},
+						"@tables": {
+							"anyOf": [
+								{
+									"type": "string",
+									"pattern": "^#([0-9a-fA-F]{3}|[0-9a-fA-F]{4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$"
+								},
+								{
+									"type": "object"
+								}
+							],
+							"description": "table and special names"
+						},
+						"@options": {
+							"anyOf": [
+								{
+									"type": "string",
+									"pattern": "^#([0-9a-fA-F]{3}|[0-9a-fA-F]{4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$"
+								},
+								{
+									"type": "object"
+								}
+							],
+							"description": "Option names on @ lines (dt, total, xp, ...)"
+						},
+						"@builtins": {
+							"anyOf": [
+								{
+									"type": "string",
+									"pattern": "^#([0-9a-fA-F]{3}|[0-9a-fA-F]{4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$"
+								},
+								{
+									"type": "object"
+								}
+							],
+							"description": "Builtin functions and constants (sin, heav, t, pi, ...)"
+						},
+						"@keywords": {
+							"anyOf": [
+								{
+									"type": "string",
+									"pattern": "^#([0-9a-fA-F]{3}|[0-9a-fA-F]{4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$"
+								},
+								{
+									"type": "object"
+								}
+							],
+							"description": "Declaration keywords (par, init, aux, done, ...)"
+						}
+					},
+					"propertyNames": {
+						"pattern": "^(@[a-z]+|[A-Za-z0-9_*]+)$"
+					}
 				}
 			}
 		},
+		"jsonValidation": [
+			{
+				"fileMatch": ".xppcolors.json",
+				"url": "./schemas/xppcolors.schema.json"
+			}
+		],
 		"keybindings": [
 			{
 				"command": "xpp.toggleComment",

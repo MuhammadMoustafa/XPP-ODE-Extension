@@ -1,0 +1,256 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "XPP identifier colours",
+  "description": "Colours and styles for XPP names in every .ode/.inc file of this folder and its subfolders. Keys: a name (case-insensitive), a wildcard such as \"v_*\", or a category such as \"@states\".",
+  "type": "object",
+  "properties": {
+    "@states": {
+      "$ref": "#/definitions/value",
+      "description": "State variables (x'=, dx/dt=, x(t+1)=, solv) everywhere they are used"
+    },
+    "@parameters": {
+      "$ref": "#/definitions/value",
+      "description": "par / number parameters and !name= derived parameters"
+    },
+    "@fixed": {
+      "$ref": "#/definitions/value",
+      "description": "Fixed variables (name=expression)"
+    },
+    "@functions": {
+      "$ref": "#/definitions/value",
+      "description": "User functions f(x)="
+    },
+    "@aux": {
+      "$ref": "#/definitions/value",
+      "description": "aux quantities"
+    },
+    "@wiener": {
+      "$ref": "#/definitions/value",
+      "description": "wiener variables"
+    },
+    "@markov": {
+      "$ref": "#/definitions/value",
+      "description": "markov variables"
+    },
+    "@tables": {
+      "$ref": "#/definitions/value",
+      "description": "table and special names"
+    },
+    "@options": {
+      "$ref": "#/definitions/value",
+      "description": "Option names on @ lines (dt, total, xp, ...)"
+    },
+    "@builtins": {
+      "$ref": "#/definitions/value",
+      "description": "Builtin functions and constants (sin, heav, t, pi, ...)"
+    },
+    "@keywords": {
+      "$ref": "#/definitions/value",
+      "description": "Declaration keywords (par, init, aux, done, ...)"
+    }
+  },
+  "propertyNames": {
+    "pattern": "^(@[a-z]+|[A-Za-z0-9_*]+)$"
+  },
+  "additionalProperties": {
+    "$ref": "#/definitions/value"
+  },
+  "definitions": {
+    "themeStyle": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "color": {
+          "type": "string",
+          "pattern": "^#([0-9a-fA-F]{3}|[0-9a-fA-F]{4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$",
+          "description": "Text colour: #rgb, #rrggbb or #rrggbbaa",
+          "defaultSnippets": [
+            {
+              "body": "\"#${1:ff8800}\""
+            }
+          ]
+        },
+        "backgroundColor": {
+          "type": "string",
+          "pattern": "^#([0-9a-fA-F]{3}|[0-9a-fA-F]{4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$",
+          "description": "Background colour: #rgb, #rrggbb or #rrggbbaa"
+        },
+        "fontStyle": {
+          "type": "string",
+          "enum": [
+            "normal",
+            "italic"
+          ]
+        },
+        "fontWeight": {
+          "type": "string",
+          "enum": [
+            "normal",
+            "bold"
+          ]
+        },
+        "textDecoration": {
+          "type": "string",
+          "description": "CSS text-decoration",
+          "enum": [
+            "underline",
+            "line-through",
+            "overline",
+            "underline wavy",
+            "underline dotted",
+            "underline dashed",
+            "none"
+          ]
+        },
+        "opacity": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "0 = invisible, 1 = opaque"
+        },
+        "borderColor": {
+          "type": "string",
+          "pattern": "^#([0-9a-fA-F]{3}|[0-9a-fA-F]{4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$",
+          "description": "Box colour: #rgb, #rrggbb or #rrggbbaa. Alone it gives a 1px solid box."
+        },
+        "borderStyle": {
+          "type": "string",
+          "enum": [
+            "solid",
+            "dashed",
+            "dotted",
+            "double"
+          ]
+        },
+        "borderWidth": {
+          "type": [
+            "string",
+            "number"
+          ],
+          "pattern": "^\\d+(\\.\\d+)?(px|em|rem|%)?$",
+          "description": "Box line width, e.g. \"1px\""
+        },
+        "borderRadius": {
+          "type": [
+            "string",
+            "number"
+          ],
+          "pattern": "^\\d+(\\.\\d+)?(px|em|rem|%)?$",
+          "description": "Box corner radius, e.g. \"3px\""
+        }
+      },
+      "description": "Overrides applied only in themes of this kind"
+    },
+    "styleObject": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "color": {
+          "type": "string",
+          "pattern": "^#([0-9a-fA-F]{3}|[0-9a-fA-F]{4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$",
+          "description": "Text colour: #rgb, #rrggbb or #rrggbbaa",
+          "defaultSnippets": [
+            {
+              "body": "\"#${1:ff8800}\""
+            }
+          ]
+        },
+        "backgroundColor": {
+          "type": "string",
+          "pattern": "^#([0-9a-fA-F]{3}|[0-9a-fA-F]{4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$",
+          "description": "Background colour: #rgb, #rrggbb or #rrggbbaa"
+        },
+        "fontStyle": {
+          "type": "string",
+          "enum": [
+            "normal",
+            "italic"
+          ]
+        },
+        "fontWeight": {
+          "type": "string",
+          "enum": [
+            "normal",
+            "bold"
+          ]
+        },
+        "textDecoration": {
+          "type": "string",
+          "description": "CSS text-decoration",
+          "enum": [
+            "underline",
+            "line-through",
+            "overline",
+            "underline wavy",
+            "underline dotted",
+            "underline dashed",
+            "none"
+          ]
+        },
+        "opacity": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "0 = invisible, 1 = opaque"
+        },
+        "light": {
+          "$ref": "#/definitions/themeStyle"
+        },
+        "dark": {
+          "$ref": "#/definitions/themeStyle"
+        },
+        "borderColor": {
+          "type": "string",
+          "pattern": "^#([0-9a-fA-F]{3}|[0-9a-fA-F]{4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$",
+          "description": "Box colour: #rgb, #rrggbb or #rrggbbaa. Alone it gives a 1px solid box."
+        },
+        "borderStyle": {
+          "type": "string",
+          "enum": [
+            "solid",
+            "dashed",
+            "dotted",
+            "double"
+          ]
+        },
+        "borderWidth": {
+          "type": [
+            "string",
+            "number"
+          ],
+          "pattern": "^\\d+(\\.\\d+)?(px|em|rem|%)?$",
+          "description": "Box line width, e.g. \"1px\""
+        },
+        "borderRadius": {
+          "type": [
+            "string",
+            "number"
+          ],
+          "pattern": "^\\d+(\\.\\d+)?(px|em|rem|%)?$",
+          "description": "Box corner radius, e.g. \"3px\""
+        }
+      },
+      "defaultSnippets": [
+        {
+          "label": "style object",
+          "body": {
+            "color": "#${1:ff8800}",
+            "fontWeight": "${2|bold,normal|}"
+          }
+        }
+      ]
+    },
+    "value": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^#([0-9a-fA-F]{3}|[0-9a-fA-F]{4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$",
+          "description": "Hex colour: #rgb, #rrggbb or #rrggbbaa"
+        },
+        {
+          "$ref": "#/definitions/styleObject"
+        }
+      ]
+    }
+  }
+}

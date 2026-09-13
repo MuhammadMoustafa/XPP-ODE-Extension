@@ -29,10 +29,19 @@ suite('Regressions', () => {
             assert.ok(results[0].message.startsWith('Missing "done"'));
         });
 
-        test('allows comments and blank lines after done but not code', () => {
+        test('allows comments and blank lines after done, warns once on other text', () => {
             assert.deepStrictEqual(checkEndDirective(['x=1', 'done', '', '# notes'], false), []);
-            const results = checkEndDirective(['x=1', 'done', '', 'y=2', '# ok'], false);
-            assert.deepStrictEqual(results.map(r => [r.line, r.start]), [[3, 0]]);
+            const results = checkEndDirective(['x=1', 'done', '', 'y=2', 'more notes', '# ok'], false);
+            assert.deepStrictEqual(results.map(r => [r.line, r.start, r.severity]), [[3, 0, 'warning']]);
+        });
+
+        test('any line whose first word starts with d is done, unless it is an equation or variable', () => {
+            for (const line of ['d', 'don', 'done# c', 'done # c', 'done\t#c', 'delta 5', 'done x=1', 'done,x', 'DONE']) {
+                assert.deepStrictEqual(checkEndDirective(['x=1', line], false), [], line);
+            }
+            for (const line of ['dt=1', 'done =1', "done'=1", 'done(0)=1', "d[1..2]'=1", 'dd/dt=1', 'dd/dt = 1']) {
+                assert.strictEqual(checkEndDirective(['x=1', line], false).length, 1, line);
+            }
         });
 
         test('uses #done for .inc files', () => {

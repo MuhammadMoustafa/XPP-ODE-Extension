@@ -16,7 +16,7 @@
  *  - any other line is silently ignored by XPP.
  */
 import { builtinFunctions, builtinConstants, specialFunctions, declarationKeywords, optionNames } from './constants';
-import { codeLines, codePart } from './lineUtils';
+import { codeLines, codePart, isDoneLine } from './lineUtils';
 
 export type LineKind =
     | 'blank' | 'comment' | 'option' | 'done'
@@ -174,7 +174,7 @@ export function parseXpp(text: string): XppModel {
     let arrayBlockRange: [number, number] | undefined;
 
     // Lines after "done" and the "done" line itself
-    const doneIndex = lines.findIndex((line, i) => rawLines[i] === line && /^\s*(d[a-z]*|#done)\s*$/i.test(line) && line.trim() !== '');
+    const doneIndex = lines.findIndex((line, i) => rawLines[i] === line && isDoneLine(line));
     rawLines.forEach((raw, i) => {
         if (doneIndex !== -1 && i > doneIndex) lineInfos[i].kind = raw.trim() === '' ? 'blank' : 'comment';
     });

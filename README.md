@@ -18,9 +18,11 @@ To learn how to customize the xppaut start command please refer to [How to Custo
 ## Version 0.4.0
 
 - Bug fixes: parentheses checking after comments, renaming globals used inside function bodies, indentation after uncommenting, and seeding of newly created files.
-- `#` inside `int{...}` is treated as the convolution operator; code after `done` is reported as an error.
+- `#` inside `int{...}` is treated as the convolution operator; text after `done` is dimmed and reported once as a warning.
 - Reserved words, declaration keywords, and `@` options updated from the XPPAUT documentation.
 - Syntax highlighting fixes for function calls and builtins.
+- New warnings: undefined names, unused names (faded), ignored lines, unknown or badly spaced `@` options. See [Diagnostics](#diagnostics).
+- Custom colours per variable/parameter through the `xpp-ode.identifierColors` setting or a `.xppcolors.json` file. See [Custom colours](#custom-colours-for-variables-and-parameters).
 
 ## Version 0.3.0
 
@@ -88,8 +90,8 @@ To learn how to customize the xppaut start command please refer to [How to Custo
 
 The extension checks each `.ode`/`.inc` file as you type and reports:
 
-- **Errors**: missing `done`, code after `done`, unbalanced brackets, reserved words used as names, duplicate or conflicting names, `@` options that XPP would silently ignore, and `solv` lines with spaces around `=`.
-- **Warnings**: undefined names, unused parameters/fixed variables/functions (shown faded), initial conditions for names that are not state variables, lines XPP does not recognise and silently skips, unknown `@` option names, and fixed variables named like a keyword (`p=1`).
+- **Errors**: missing `done`, unbalanced brackets, reserved words used as names, duplicate or conflicting names, `@` options that XPP would silently ignore, and `solv` lines with spaces around `=`.
+- **Warnings**: text after `done` (XPP stops reading there, so the samples keep notes and C source below it; it is shown dimmed), undefined names, unused parameters/fixed variables/functions (shown faded), initial conditions for names that are not state variables, lines XPP does not recognise and silently skips, unknown `@` option names, and fixed variables named like a keyword (`p=1`).
 
 Names defined in `#include`d files count as defined. Inside an `.inc` file the undefined-name check is off, because the including `.ode` file may define them.
 
@@ -111,7 +113,7 @@ All of these were verified by running files through `xppaut` 8.0.
 | `0=` | an algebraic condition |
 | `@ ...` | options |
 | `#...` or `"...` | a comment |
-| a word starting with `d` alone on a line (`done`, `d`) | end of file, everything after it is ignored |
+| a first word starting with `d` that is not followed by `=`, `'`, `(`, `[` or `/dt` (`done`, `d`, `done # notes`, even `done x=1`) | end of file, everything after it is ignored |
 | anything else | **silently ignored** |
 
 **Keyword prefixes.** Only the first letters of the keyword matter: `p`, `par`, `param`, `params` and `parameter` all declare parameters. Single letters work for `p`(ar), `i`(nit), `w`(iener), `n`(umber), `g`(lobal), `b`(dry), `v`(olt), `o`(ptions) and `d`(one); two letters are needed for `au`(x), `ma`(rkov), `ta`(ble), `se`(t), `so`(lv), `sp`(ecial), `ex`(port), `im`(port) and `on`(ly). The separator after the keyword must be a space; a tab makes XPP read `init<tab>x=5` as a fixed variable named `initx`.
@@ -132,9 +134,60 @@ All of these were verified by running files through `xppaut` 8.0.
 
 </details>
 
+## Custom colours for variables and parameters
+
+You can give any variable, parameter or function its own colour, independent of the theme, so that (for example) the membrane voltage is always red and the coupling parameter always bold green.
+
+**Per workspace or user: the `xpp-ode.identifierColors` setting.** Put it in `.vscode/settings.json` to apply it to every `.ode`/`.inc` file in the workspace:
+
+```json
+"xpp-ode.identifierColors": {
+    "v": "#ff5555",
+    "gsyn": { "color": "#55ff55", "fontWeight": "bold" },
+    "iapp": { "color": "#8888ff", "fontStyle": "italic" }
+}
+```
+
+**Per folder: a `.xppcolors.json` file.** Create a file with the same content (just the object) in a folder, and it applies to every `.ode`/`.inc` file in that folder and its subfolders:
+
+```json
+{
+    "v": "#ff5555",
+    "gsyn": { "color": "#55ff55", "fontWeight": "bold" }
+}
+```
+
+Rules:
+
+- Names are case-insensitive, like in XPP. `dv/dt`, `v'`, `v(0)` and every use of `v` in expressions are coloured; comments and text after `done` are not.
+- A value is either a hex colour (`#rgb`, `#rrggbb` or `#rrggbbaa`) or an object with any of:
+  - `color`, `backgroundColor`: hex colours;
+  - `fontWeight`: `bold`; `fontStyle`: `italic`;
+  - `textDecoration`: CSS such as `underline`, `line-through` or `underline wavy`;
+  - `opacity`: `0` to `1`;
+  - `borderColor`: hex colour (alone it gives a 1px solid box); `borderStyle`: `solid`, `dashed`, `dotted` or `double`; `borderWidth` and `borderRadius`: lengths such as `1px`;
+  - `light` / `dark`: an object with the same properties, applied only in light or dark themes (every VS Code theme declares itself as light, dark or high-contrast), e.g. `{ "light": { "color": "#a00" }, "dark": { "color": "#f88" } }`.
+- A key starting with `@` styles a whole category, resolved by the parser, so a parameter is coloured everywhere it is used, not only on its `par` line: `@states` (also `solv`), `@parameters` (`par`, `number`, `!name=`), `@fixed`, `@functions`, `@aux`, `@wiener`, `@markov`, `@tables` (also `special`), `@options` (names on `@` lines), `@builtins` (`sin`, `heav`, `t`, `pi`, ...) and `@keywords` (`par`, `init`, `done`, ...). A name with its own entry always wins over its group.
+
+```json
+{
+    "@states": "#ff5555",
+    "@parameters": { "color": "#55ff55", "fontWeight": "bold" },
+    "@builtins": { "fontStyle": "italic" },
+    "v": { "borderColor": "#ff5555", "borderRadius": "3px" }
+}
+```
+- When both exist, a `.xppcolors.json` file overrides the setting, and a file in a subfolder overrides one in a parent folder, name by name.
+- Invalid entries are skipped and reported once as a warning.
+- A key may contain `*` as a wildcard: `"v_*"` styles `v_na`, `v_k`, ...; `"*_syn"` styles `g_syn` and `e_syn`. An exact name wins over a wildcard, a wildcard over a group, and among wildcards the last one listed wins.
+- An array name covers its members: `"u"` styles `u[j]`, `u[0..9]` and `u0`...`u9`.
+- Hex colours in `.xppcolors.json`, and inside the `xpp-ode.identifierColors` block of `settings.json`, show a colour swatch; click it to open VS Code's colour picker.
+- While editing `.xppcolors.json`, completion (Ctrl+Space) suggests the `@groups`, every name declared in the folder's `.ode`/`.inc` files, and the style properties and their values; typos are underlined.
+
 ## Future Work
 
 - Handle active comments.
+- `.ani` animation files: highlighting, and counting their references as uses of the `.ode` names.
 
 ---
 

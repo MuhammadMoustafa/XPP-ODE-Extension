@@ -5,3 +5,5 @@ test_files
 *.pat
 out
 xppall/
+docs/
+ode/

@@ -7,6 +7,9 @@ import { toggleComment } from './utils/commenting';
 import { handleNewFile } from './utils/fileHandler';
 import { RunOdeFileProvider } from './providers/RunOdeFileProvider';
 import { ExtractVariableProvider } from './providers/extractVariableProvider';
+import { IdentifierColorProvider } from './providers/identifierColorProvider';
+import { XppColorPickerProvider } from './providers/colorPickerProvider';
+import { ColorsFileCompletionProvider } from './providers/colorsFileCompletionProvider';
 
 const XPP_SELECTOR: vscode.DocumentSelector = { scheme: 'file', language: XPP_LANGUAGE_ID };
 
@@ -21,6 +24,9 @@ export function activate(context: vscode.ExtensionContext) {
 
     context.subscriptions.push(
         diagnosticManager,
+        new IdentifierColorProvider(),
+        ...XppColorPickerProvider.register(),
+        ColorsFileCompletionProvider.register(),
         vscode.workspace.onDidSaveTextDocument((document) => {
             if (isXppDocument(document)) {
                 diagnosticManager.checkFile(document);

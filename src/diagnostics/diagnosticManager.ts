@@ -82,7 +82,8 @@ export class DiagnosticManager implements vscode.Disposable {
         const lines = document.getText().split(/\r?\n/);
         return checkEndDirective(lines, isIncFile).map(res => {
             const range = new vscode.Range(res.line, res.start, res.line, res.end);
-            return new vscode.Diagnostic(range, res.message, vscode.DiagnosticSeverity.Error);
+            const severity = res.severity === 'error' ? vscode.DiagnosticSeverity.Error : vscode.DiagnosticSeverity.Warning;
+            return new vscode.Diagnostic(range, res.message, severity);
         });
     }
 

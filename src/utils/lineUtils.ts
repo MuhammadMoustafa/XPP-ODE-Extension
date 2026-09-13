@@ -38,13 +38,19 @@ export function codePart(line: string): string {
 }
 
 /**
- * True when this line ends the XPP file: any word starting with "d" on its own line
- * ("done", "d", even "don"; verified against xppaut 8.0), or "#done" in .inc files.
+ * True when this line ends the XPP file, or is "#done" in .inc files.
+ *
+ * Verified against xppaut 8.0: a line whose first word starts with "d" ends the file
+ * ("done", "d", "delta 5", "done # comment", "done x=1" all do), unless the word is followed by
+ * "=", "'", "(", "[" or "/" and so forms a fixed variable, equation, initial condition, array
+ * or derivative ("dt=0.1", "done =1", "done'=1", "d[1..2]'=", "dd/dt=").
  */
 export function isDoneLine(line: string): boolean {
     const trimmed = line.trim().toLowerCase();
-    return /^d[a-z]*$/.test(trimmed) || trimmed === '#done';
+    return DONE_LINE.test(trimmed) || trimmed === '#done';
 }
+
+const DONE_LINE = /^d[a-z0-9_]*\b\s*(?:$|[^=\s'(\[/])/;
 
 /** Index of the "done" line, or the number of lines when there is none. */
 export function endOfCode(lines: string[]): number {

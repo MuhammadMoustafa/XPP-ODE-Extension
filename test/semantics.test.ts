@@ -35,6 +35,12 @@ suite('XPP model and semantic checks', () => {
             assert.deepStrictEqual(model.declarations.map(d => `${d.kind}:${d.name}`), ['parameter:a', 'fixed:p', 'fixed:init', 'fixed:done', 'fixed:dt']);
         });
 
+        test('done may carry a trailing comment or text', () => {
+            const model = parseXpp("x'=-x\ndone # the end\ny'=-y\n\n# notes");
+            assert.deepStrictEqual(model.lineInfos.map(i => i.kind), ['state', 'done', 'comment', 'blank', 'comment']);
+            assert.deepStrictEqual(parseXpp("x'=-x\ndt=0.1\ndone").lineInfos.map(i => i.kind), ['state', 'fixed', 'done']);
+        });
+
         test('unknown prefixes and tabs after keywords are flagged as ignored', () => {
             assert.strictEqual(parseXpp('a z=x').lineInfos[0].kind, 'ignored');
             assert.strictEqual(parseXpp('m z 2').lineInfos[0].kind, 'ignored');
