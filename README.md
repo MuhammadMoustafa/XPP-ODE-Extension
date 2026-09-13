@@ -11,7 +11,8 @@ To learn how to customize the xppaut start command please refer to [How to Custo
 
 ## Thank you list
 
-- **Nianqi Deng** for suggesting the "Run Button"
+- **Nianqi Deng** for suggesting the ["Run ODE File" button](#how-to-customize-the-run-command)
+- **Leqi Wang** for suggesting [custom colours for variables and parameters](#custom-colours-for-variables-and-parameters)
 
 ---
 
@@ -136,53 +137,95 @@ All of these were verified by running files through `xppaut` 8.0.
 
 ## Custom colours for variables and parameters
 
-You can give any variable, parameter or function its own colour, independent of the theme, so that (for example) the membrane voltage is always red and the coupling parameter always bold green.
+Give any name in your models its own look, independent of the theme: the membrane voltage always red, every parameter bold green, builtins italic, one variable in a box. The colours follow the parser, so a parameter is coloured everywhere it is used, not only on its `par` line.
 
-**Per workspace or user: the `xpp-ode.identifierColors` setting.** Put it in `.vscode/settings.json` to apply it to every `.ode`/`.inc` file in the workspace:
+### Where to put the configuration
 
-```json
-"xpp-ode.identifierColors": {
-    "v": "#ff5555",
-    "gsyn": { "color": "#55ff55", "fontWeight": "bold" },
-    "iapp": { "color": "#8888ff", "fontStyle": "italic" }
-}
-```
+| Place | Applies to | How |
+|---|---|---|
+| `.xppcolors.json` in a folder | every `.ode`/`.inc` file in that folder and its subfolders | create the file; a file in a subfolder overrides one in a parent folder, key by key |
+| `xpp-ode.identifierColors` in `.vscode/settings.json` | the whole workspace | Settings > search "XPP-ODE" > edit in settings.json |
+| `xpp-ode.identifierColors` in user settings | every workspace | same |
 
-**Per folder: a `.xppcolors.json` file.** Create a file with the same content (just the object) in a folder, and it applies to every `.ode`/`.inc` file in that folder and its subfolders:
+Both places take the same object. Files override the setting, key by key. Changes apply immediately.
 
-```json
-{
-    "v": "#ff5555",
-    "gsyn": { "color": "#55ff55", "fontWeight": "bold" }
-}
-```
+### A complete example
 
-Rules:
-
-- Names are case-insensitive, like in XPP. `dv/dt`, `v'`, `v(0)` and every use of `v` in expressions are coloured; comments and text after `done` are not.
-- A value is either a hex colour (`#rgb`, `#rrggbb` or `#rrggbbaa`) or an object with any of:
-  - `color`, `backgroundColor`: hex colours;
-  - `fontWeight`: `bold`; `fontStyle`: `italic`;
-  - `textDecoration`: CSS such as `underline`, `line-through` or `underline wavy`;
-  - `opacity`: `0` to `1`;
-  - `borderColor`: hex colour (alone it gives a 1px solid box); `borderStyle`: `solid`, `dashed`, `dotted` or `double`; `borderWidth` and `borderRadius`: lengths such as `1px`;
-  - `light` / `dark`: an object with the same properties, applied only in light or dark themes (every VS Code theme declares itself as light, dark or high-contrast), e.g. `{ "light": { "color": "#a00" }, "dark": { "color": "#f88" } }`.
-- A key starting with `@` styles a whole category, resolved by the parser, so a parameter is coloured everywhere it is used, not only on its `par` line: `@states` (also `solv`), `@parameters` (`par`, `number`, `!name=`), `@fixed`, `@functions`, `@aux`, `@wiener`, `@markov`, `@tables` (also `special`), `@options` (names on `@` lines), `@builtins` (`sin`, `heav`, `t`, `pi`, ...) and `@keywords` (`par`, `init`, `done`, ...). A name with its own entry always wins over its group.
+A `.xppcolors.json` in a folder, applied to every `.ode`/`.inc` file in that folder and its subfolders:
 
 ```json
 {
-    "@states": "#ff5555",
-    "@parameters": { "color": "#55ff55", "fontWeight": "bold" },
-    "@builtins": { "fontStyle": "italic" },
-    "v": { "borderColor": "#ff5555", "borderRadius": "3px" }
+    "@states":     "#ff7b72",
+    "@parameters": { "color": "#7ee787", "fontWeight": "bold" },
+    "@fixed":      { "color": "#d2a8ff" },
+    "@builtins":   { "fontStyle": "italic" },
+    "@options":    { "opacity": 0.6 },
+
+    "v":    { "color": "#ffffff", "borderColor": "#ff7b72", "borderRadius": "3px" },
+    "g_*":  { "textDecoration": "underline" },
+    "iapp": { "light": { "color": "#a00000" }, "dark": { "color": "#ff8888" } }
 }
 ```
-- When both exist, a `.xppcolors.json` file overrides the setting, and a file in a subfolder overrides one in a parent folder, name by name.
-- Invalid entries are skipped and reported once as a warning.
-- A key may contain `*` as a wildcard: `"v_*"` styles `v_na`, `v_k`, ...; `"*_syn"` styles `g_syn` and `e_syn`. An exact name wins over a wildcard, a wildcard over a group, and among wildcards the last one listed wins.
-- An array name covers its members: `"u"` styles `u[j]`, `u[0..9]` and `u0`...`u9`.
-- Hex colours in `.xppcolors.json`, and inside the `xpp-ode.identifierColors` block of `settings.json`, show a colour swatch; click it to open VS Code's colour picker.
-- While editing `.xppcolors.json`, completion (Ctrl+Space) suggests the `@groups`, every name declared in the folder's `.ode`/`.inc` files, and the style properties and their values; typos are underlined.
+
+Reading it: state variables are salmon and parameters bold green everywhere they appear. `v` is white in a salmon box, because an exact name wins over its group. Every name starting with `g_` (`g_na`, `g_k`, `g_l`) is underlined in the theme's colour, because a wildcard wins over its group and replaces it entirely. `iapp` is dark red on light themes and pale red on dark ones. Option names on `@` lines are faded.
+
+### Keys
+
+| Key | Meaning | Example |
+|---|---|---|
+| a name | that identifier, case-insensitive; an array name also covers its members | `"v"`, `"gsyn"`, `"u"` (covers `u[j]`, `u[0..9]`, `u0`...`u9`) |
+| a name with `*` | every identifier matching the pattern (`*` = any letters, digits or `_`) | `"v_*"`, `"*_syn"`, `"u*x"` |
+| `@group` | a whole category, resolved by the parser | `"@states"`, `"@parameters"` |
+
+Available groups:
+
+| Group | Contains |
+|---|---|
+| `@states` | state variables: `x'=`, `dx/dt=`, `x(t+1)=`, `x(t)=`, `solv` |
+| `@parameters` | `par` and `number` parameters, `!name=` derived parameters |
+| `@fixed` | fixed variables `name=expression` |
+| `@functions` | user functions `f(x)=` |
+| `@aux` | `aux` quantities |
+| `@wiener` | `wiener` variables |
+| `@markov` | `markov` variables |
+| `@tables` | `table` and `special` names |
+| `@options` | option names on `@` lines (`dt`, `total`, `xp`, ...) |
+| `@builtins` | builtin functions and constants (`sin`, `heav`, `t`, `pi`, ...) |
+| `@keywords` | declaration keywords (`par`, `init`, `aux`, `done`, ...) |
+
+Precedence, most specific first: exact name > wildcard (the last listed wins) > group. Comments and text after `done` are never coloured.
+
+### Values
+
+A value is either a hex colour string or a style object.
+
+```json
+"v": "#ff7b72"
+"v": { "color": "#ff7b72", "fontWeight": "bold" }
+```
+
+| Property | Allowed values | Notes |
+|---|---|---|
+| `color` | `#rgb`, `#rrggbb`, `#rrggbbaa` | text colour |
+| `backgroundColor` | hex colour | use `aa` for a translucent highlight, e.g. `#ffff0040` |
+| `fontWeight` | `bold`, `normal` | |
+| `fontStyle` | `italic`, `normal` | |
+| `textDecoration` | `underline`, `line-through`, `overline`, `underline wavy`, `underline dotted`, `underline dashed` | |
+| `opacity` | `0` to `1` | `0.5` fades the name |
+| `borderColor` | hex colour | alone it draws a 1px solid box |
+| `borderStyle` | `solid`, `dashed`, `dotted`, `double` | |
+| `borderWidth` | length: `1px`, `0.1em` | |
+| `borderRadius` | length: `3px` | rounded box corners |
+| `light` | object with the properties above | applied only in light themes |
+| `dark` | object with the properties above | applied only in dark themes |
+
+Every VS Code theme declares itself as light, dark or high-contrast; `light`/`dark` entries are layered on top of the base properties for that kind of theme.
+
+### Editing help
+
+- Hex colours show a swatch in `.xppcolors.json` and inside the `xpp-ode.identifierColors` block of `settings.json`; click it for the colour picker.
+- In `.xppcolors.json`, completion (`Ctrl+Space`, or typing `"` or `@`) offers the groups, every name declared in the folder's `.ode`/`.inc` files with its kind, and the style properties with their allowed values. Misspelled properties and invalid values are underlined.
+- Entries the extension cannot use (unknown group, bad colour, ...) are skipped and reported once as a warning; the rest still apply.
 
 ## Future Work
 
@@ -193,19 +236,52 @@ Rules:
 
 ## How to Customize the Run Command
 
-If you’d like to change the default `xppaut` command to a custom command or specify the full path to the `xppaut` executable, follow these steps:
+The "Run ODE File" button (editor title bar of any `.ode` file) saves the file, opens an integrated terminal **in the file's folder**, and runs:
 
-1. **Open VS Code Settings**  
-   - You can access the settings by clicking on the gear icon in the lower-left corner of the VS Code window or by pressing `Ctrl + ,` (Cmd + , on macOS).
+```
+<xpp-ode.runCommand> "<file name>.ode"
+```
 
-2. **Search for "XPP-ODE"**  
-   - In the settings search bar, type "XPP-ODE" to locate the extension-specific settings.
+It runs in the file's folder because xppaut looks for `#include`d files, `table` files and `dll_lib` libraries relative to the directory it is started from, and writes its output files there too.
 
-3. **Modify the "Run Command" Setting**  
-   - Find the **"Run Command"** setting and update its value.  
-   - By default, the value is set to `xppaut`. You can change it to:
-     - A full path to the `xppaut` executable (e.g., `/usr/local/bin/xppaut`).
-     - A completely different command if needed.
+The default command is `xppaut`, which works when xppaut is on your `PATH`. To change it: Settings (`Ctrl + ,` / `Cmd + ,`) > search "XPP-ODE" > **Run Command**. Typical values:
 
-4. **Save Your Changes**  
-   - Once you’ve updated the setting, the extension will use your custom command whenever you click the "Run ODE File" button.
+| Setup | Run Command |
+|---|---|
+| Linux, xppaut installed from the package manager or `make install` | `xppaut` |
+| macOS with XQuartz, xppaut not on the PATH | `/usr/local/bin/xppaut` (or wherever you installed it) |
+| Windows, xppaut installed inside WSL (with WSLg or an X server) | `wsl xppaut` |
+| Windows, the Cygwin build from `xppwin.zip` | `C:\xppall\xppaut.exe` (see below) |
+| Extra options for every run | `xppaut -xorfix`, `xppaut -silent`, ... |
+
+Since only the file name is passed, `wsl xppaut` works without translating Windows paths: WSL starts in the same folder.
+
+The setting can be set per workspace (`.vscode/settings.json`), so a project can carry its own command.
+
+### Windows with the Cygwin build
+
+The Windows `xppaut.exe` is an X11 program. It needs two things, or it exits with "Failed to open X-Display":
+
+1. **An X server running**, such as [Xming](https://sourceforge.net/projects/xming/) or [VcXsrv](https://sourceforge.net/projects/vcxsrv/). It sits in the tray once started.
+2. **The `DISPLAY` variable** telling xppaut where that server is. Starting the server does not set it; the `xpp.bat` shipped with xppaut sets `DISPLAY=127.0.0.1:0.0` for this reason.
+
+The extension handles both:
+
+| Setting | Default | Effect |
+|---|---|---|
+| `xpp-ode.runCommand` | `xppaut` | set to `C:\xppall\xppaut.exe` (or wherever you unzipped `xppall`; it does not have to be `C:\`) |
+| `xpp-ode.display` | `127.0.0.1:0.0` | given to xppaut as `DISPLAY` when the variable is not already set; change it only if your server uses another display number |
+| `xpp-ode.xServer` | empty | full command line of the X server to start automatically when it is not running, e.g. `"C:\Program Files (x86)\Xming\Xming.exe" :0 -multiwindow -clipboard`; leave empty to start it yourself |
+
+Before each run the extension checks whether a server is listening on the display. If none is and `xpp-ode.xServer` is set, it starts the server and waits for it; otherwise it shows a warning naming the address and the fix, and still runs xppaut so you see its own message too.
+
+Do not chain the server into the run command (`xming && xppaut`): `&&` waits for the first program to exit, and an X server never exits.
+
+A complete Windows `.vscode/settings.json`:
+
+```json
+{
+    "xpp-ode.runCommand": "C:\\xppall\\xppaut.exe",
+    "xpp-ode.xServer": "\"C:\\Program Files (x86)\\Xming\\Xming.exe\" :0 -multiwindow -clipboard"
+}
+```

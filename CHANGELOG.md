@@ -18,8 +18,9 @@ All notable changes to this extension will be documented in this file.
 - "Extract to Variable" matches whole tokens only and skips comments.
 - New shared parser for `.ode` files (`xppModel.ts`) following xppaut 8.0's line rules, and new warnings built on it: undefined names, unused parameters/fixed variables/functions (faded), initial conditions for non-state variables, lines XPP silently ignores, unknown `@` options, and fixed variables named like a keyword. `@` options with spaces around `=` and `solv` with spaces are errors, since XPP ignores or rejects them. Names from `#include`d files are taken into account.
 - All XPP and AUTO `@` option names are recognised and highlighted.
+- "Run ODE File" now saves the file and runs xppaut in the file's folder, so `#include`d files, `table` files and `dll_lib` libraries are found; only the file name is passed, which also makes `wsl xppaut` work on Windows. The duplicate status-bar play button is gone; the button lives in the editor title bar. On Windows the terminal gets `DISPLAY` set (`xpp-ode.display`, default `127.0.0.1:0.0`) so the Cygwin build finds the X server, and `xpp-ode.xServer` can name an X server (Xming, VcXsrv) to start automatically when nothing listens on the display; when no server can be reached a warning explains what to do.
 - Dev dependencies updated (TypeScript 5, `@types/node` 20, `@types/vscode` matching the engine).
-- Custom colours for identifiers: the `xpp-ode.identifierColors` setting (`{ "v": "#ff5555", "gsyn": { "color": "#55ff55", "fontWeight": "bold" } }`) or a `.xppcolors.json` file in a folder colours those names in every `.ode`/`.inc` file, independent of the theme. Styles may also set `backgroundColor`, `fontStyle`, `textDecoration`, `opacity`, `borderColor`/`borderStyle`/`borderWidth`/`borderRadius`, and `light`/`dark` theme variants. Keys such as `@states`, `@parameters`, `@fixed`, `@functions`, `@aux`, `@options`, `@builtins` or `@keywords` style a whole category, resolved by the parser. Files in subfolders override parent folders and the setting. Keys may use `*` wildcards (`v_*`), and an array name covers its members. Hex colours in these files get swatches and the VS Code colour picker; `.xppcolors.json` gets validation and completion of groups, declared names and style properties.
+- Custom colours for identifiers, configured in a `.xppcolors.json` file (per folder, including subfolders) or the `xpp-ode.identifierColors` setting (per workspace or user). Keys are names (`"v"`, arrays cover their members), `*` wildcards (`"g_*"`) or groups resolved by the parser (`@states`, `@parameters`, `@fixed`, `@functions`, `@aux`, `@wiener`, `@markov`, `@tables`, `@options`, `@builtins`, `@keywords`). Values are a hex colour or a style object with `color`, `backgroundColor`, `fontWeight`, `fontStyle`, `textDecoration`, `opacity`, `borderColor`/`borderStyle`/`borderWidth`/`borderRadius`, and `light`/`dark` overrides. Colour swatches and the colour picker work on the hex strings; `.xppcolors.json` gets schema validation and completion of groups, declared names and properties. See the README section "Custom colours for variables and parameters".
 
 ## Version 0.3.0
 
@@ -59,6 +60,5 @@ All notable changes to this extension will be documented in this file.
 
 ## Future Work
 
-- Ensure `Run ODE File` button works on all operating systems
 - Handle active comments
 - `.ani` animation files

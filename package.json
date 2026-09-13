@@ -99,7 +99,17 @@
 				"xpp-ode.runCommand": {
 					"type": "string",
 					"default": "xppaut",
-					"description": "Command to run XPP-ODE files. Default is 'xppaut'"
+					"markdownDescription": "Command that runs an `.ode` file; the file name is appended. It runs in the file's folder. Examples: `xppaut`, `/usr/local/bin/xppaut`, `C:\\\\xppall\\\\xppaut.exe`, `wsl xppaut`, `xppaut -xorfix`."
+				},
+				"xpp-ode.display": {
+					"type": "string",
+					"default": "127.0.0.1:0.0",
+					"markdownDescription": "Windows only. Value of the `DISPLAY` variable given to xppaut when it is not already set, so that the Cygwin build finds the X server (Xming, VcXsrv). Not used for `wsl ...` commands."
+				},
+				"xpp-ode.xServer": {
+					"type": "string",
+					"default": "",
+					"markdownDescription": "Windows only. Command line of an X server to start automatically before running xppaut when it is not already running, e.g. `\"C:\\\\Program Files (x86)\\\\Xming\\\\Xming.exe\" :0 -multiwindow -clipboard`. Leave empty to start the server yourself."
 				},
 				"xpp-ode.debounceDelay": {
 					"type": "number",
