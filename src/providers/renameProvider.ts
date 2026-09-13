@@ -8,13 +8,16 @@ export class XppRenameProvider implements vscode.RenameProvider {
         position: vscode.Position,
         token: vscode.CancellationToken
     ): Promise<vscode.Range | { range: vscode.Range; placeholder: string } | null> {
-        
+
         if (token.isCancellationRequested) return null;
 
-        // Use shared detection logic - guaranteed consistency with highlighting
         const detection = ProviderCore.detectVariableAtPosition(document, position);
         if (!detection) {
-            return null; // Fail fast - nothing to rename
+            return null;
+        }
+
+        if (isReservedWord(detection.variableName)) {
+            throw new Error(`'${detection.variableName}' is a reserved word in XPP and cannot be renamed.`);
         }
 
         return {
@@ -29,21 +32,24 @@ export class XppRenameProvider implements vscode.RenameProvider {
         newName: string,
         token: vscode.CancellationToken
     ): Promise<vscode.WorkspaceEdit | null> {
-        
+
         if (token.isCancellationRequested) return null;
 
-        // Use shared detection logic - guaranteed consistency with prepareRename  
         const detection = ProviderCore.detectVariableAtPosition(document, position);
         if (!detection) {
-            return null; // Fail fast - nothing to rename
+            return null;
         }
 
-        // Validate new name
+        if (isReservedWord(detection.variableName)) {
+            throw new Error(`'${detection.variableName}' is a reserved word in XPP and cannot be renamed.`);
+        }
+        if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(newName)) {
+            throw new Error(`'${newName}' is not a valid XPP identifier.`);
+        }
         if (isReservedWord(newName)) {
             throw new Error(`'${newName}' is a reserved word in XPP and cannot be used as a variable name.`);
         }
 
-        // Perform the rename using shared logic
         return ProviderCore.performRename(document, detection, newName, token);
     }
 }

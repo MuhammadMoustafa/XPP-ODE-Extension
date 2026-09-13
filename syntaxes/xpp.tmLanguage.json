@@ -16,7 +16,7 @@
       "patterns": [
         {
           "name": "support.function.builtin.xpp",
-          "match": "(?i)\\b(sin|cos|tan|atan|atan2|sinh|cosh|tanh|exp|delay|ln|log|log10|asin|acos|heav|sign|ceil|flr|ran|abs|del_shft|max|min|normal|besselj|bessely|erf|erfc|hom_bcs|sum|shift|not|$)\\b"
+          "match": "(?i)\\b(sin|cos|tan|atan|atan2|sinh|cosh|tanh|exp|delay|ln|log|log10|sqrt|mod|asin|acos|heav|sign|ceil|flr|ran|abs|del_shft|max|min|normal|besselj|bessely|besseli|erf|erfc|hom_bcs|shift|sum|of|int|not|arg[1-9]|conv|fconv|sparse|fsparse|mmult|fmmult|findext)\\b"
         },
         {
           "name": "support.function.builtin.xpp",
@@ -32,19 +32,11 @@
         },
         {
           "name": "keyword.other.reserved.xpp",
-          "match": "(?i)^(parameter|param|par|bdry|bndry|volt|init|aux|global|markov|wiener|table|done|#done|#include)\\b"
-        },
-        {
-          "name": "keyword.other.reserved_abbreviated.xpp",
-          "match": "(?i)^[mpwtaibgd](?= \\w)"
+          "match": "(?i)^(#done|#include|d[a-z]*(?=\\s*$)|(?:p|i|w|n|g|b|v|o|au|ma|ta|se|so|sp|ex|im|on)[a-z]*(?=\\s+[a-z_0-9{]))"
         },
         {
           "name": "keyword.other.reserved.xpp.options",
-          "match": "(?i)\\b(total|dt|xlo|xhi|ylo|yhi|Nplot|xp.*?|yp.*?)(?==)\\b"
-        },
-        {
-          "name": "keyword.other.reserved.auto.options",
-          "match": "(?i)\\b(DS|EPSU|EPSS|DSMIN|DSMAX|Ntst|NMAX|MAXSTOR|BOUNDS|NPR|NORMMIN|NORMMAX|autoxmin|autoxmax|autoymin|autoymax|parmin|parmax)\\b"
+          "match": "(?i)\\b(atol|atoler|autoeval|autovar|autoxmax|autoxmin|autoymax|autoymin|axes|back|backcolor|bandlo|bandup|bell|bigfont|bound|bounds|but|colormap|delay|dfdraw|dfgrid|dll_fun|dll_lib|ds|dsmax|dsmin|dt|dtmax|dtmin|dwcolor|epsl|epss|epsu|fold|forecolor|grads|height|jac_eps|lt|maxstor|meth|method|mwcolor|ncdraw|newt_iter|newt_tol|njmp|nmax|nmesh|nout|nplot|npr|nstab|ntst|output|parmax|parmin|phi|poimap|poipln|poisgn|poistop|poivar|ps_color|ps_font|ps_fsize|ps_lw|range|rangehigh|rangelow|rangeoldic|rangeover|rangereset|rangestep|rangesteps|runnow|seed|smallfont|smc|stoch|t0|theta|tol|toler|tor_per|total|trans|transient|umc|vmaxpts|width|xhi|xlo|xmax|xmin|xnc|xp[2-8]?|xplot|yhi|ylo|ymax|ymin|ync|yp[2-8]?|yplot|zmax|zmin|zp[2-8]?|zplot)(?=\\s*=)"
         }
       ]
     },
@@ -59,7 +51,7 @@
           }
         },
         {
-          "match": "([a-zA-Z_][a-zA-Z0-9_]*)'",
+          "match": "([a-zA-Z_][a-zA-Z0-9_]*)(')",
           "captures": {
             "1": { "name": "variable.other.var.xpp" },
             "2": { "name": "entity.name.function.derivative.xpp" }
@@ -84,12 +76,12 @@
         {
           "name": "meta.function.xpp",
           "begin": "\\b([a-zA-Z_][a-zA-Z0-9_]*)\\s*\\(",
-          "end": "\\)\\s*(=|\\n)",
+          "end": "\\)",
           "beginCaptures": {
             "1": { "name": "entity.name.function.xpp" }
           },
           "endCaptures": {
-            "0": { "name": "keyword.operator.assignment.xpp" }
+            "0": { "name": "punctuation.definition.group.xpp" }
           },
           "patterns": [
             {

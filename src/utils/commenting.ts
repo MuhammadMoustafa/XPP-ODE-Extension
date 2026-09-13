@@ -1,11 +1,10 @@
 import * as vscode from 'vscode';
 import { toggleCommentCore } from './commentingCore';
 
-export function toggleComment(args: any): void {
-    const editor = vscode.window.activeTextEditor;
-    if (!editor || editor.document.languageId !== 'xpp') {
+export function toggleComment(editor: vscode.TextEditor): void {
+    if (editor.document.languageId !== 'xpp') {
         vscode.window.showInformationMessage('The current file is not an XPP file.');
-        return; // Simply return for non-XPP files
+        return;
     }
 
     const document = editor.document;

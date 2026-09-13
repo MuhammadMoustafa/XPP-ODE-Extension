@@ -1,18 +1,23 @@
 import * as vscode from 'vscode';
 import { ParenthesesChecker } from './parenthesesChecker';
 import { VariableChecker } from './variableChecker';
+import { checkEndDirective } from '../utils/endDirectiveCore';
+import { SemanticChecker } from './semanticChecker';
 
-export class DiagnosticManager {
+const DEFAULT_DEBOUNCE_MS = 300;
+
+export class DiagnosticManager implements vscode.Disposable {
     private diagnosticCollection: vscode.DiagnosticCollection;
     private parenthesesChecker: ParenthesesChecker;
     private variableChecker: VariableChecker;
-    private debounceTimer: NodeJS.Timeout | undefined;
-    private documentQueue: Set<vscode.TextDocument> = new Set();
+    private semanticChecker: SemanticChecker;
+    private pendingChecks = new Map<string, NodeJS.Timeout>();
 
     constructor() {
         this.diagnosticCollection = vscode.languages.createDiagnosticCollection('xpp');
         this.parenthesesChecker = new ParenthesesChecker();
         this.variableChecker = new VariableChecker();
+        this.semanticChecker = new SemanticChecker();
     }
 
     /**
@@ -20,23 +25,22 @@ export class DiagnosticManager {
      * Use this method for responding to typing and other frequent changes.
      */
     public scheduleCheckFile(document: vscode.TextDocument): void {
-        // Add document to queue
-        this.documentQueue.add(document);
-        
-        // Clear existing timer
-        if (this.debounceTimer) {
-            clearTimeout(this.debounceTimer);
+        const key = document.uri.toString();
+        const existing = this.pendingChecks.get(key);
+        if (existing) {
+            clearTimeout(existing);
         }
-        
-        // Set new timer
-        this.debounceTimer = setTimeout(() => {
-            // Process all documents in queue
-            this.documentQueue.forEach(doc => {
-                this.processFile(doc);
-            });
-            // Clear queue
-            this.documentQueue.clear();
-        }, 300); // 300ms debounce delay
+
+        const delay = vscode.workspace
+            .getConfiguration('xpp-ode', document)
+            .get<number>('debounceDelay', DEFAULT_DEBOUNCE_MS);
+
+        this.pendingChecks.set(key, setTimeout(() => {
+            this.pendingChecks.delete(key);
+            if (!document.isClosed) {
+                this.processFile(document);
+            }
+        }, delay));
     }
 
     /**
@@ -48,46 +52,43 @@ export class DiagnosticManager {
         this.processFile(document);
     }
 
-    /**
-     * Internal method that performs the actual diagnostic checks.
-     * This is separated from the public methods to avoid code duplication
-     * between the debounced and immediate check paths.
-     */
+    /** Removes the diagnostics of a document, e.g. when it is closed. */
+    public clear(document: vscode.TextDocument): void {
+        const key = document.uri.toString();
+        const pending = this.pendingChecks.get(key);
+        if (pending) {
+            clearTimeout(pending);
+            this.pendingChecks.delete(key);
+        }
+        this.diagnosticCollection.delete(document.uri);
+    }
+
     private processFile(document: vscode.TextDocument): void {
         const diagnostics: vscode.Diagnostic[] = [
             ...this.checkEndDirectives(document),
             ...this.parenthesesChecker.check(document),
-            ...this.variableChecker.check(document)
+            ...this.variableChecker.check(document),
+            ...this.semanticChecker.check(document)
         ];
 
         this.diagnosticCollection.set(document.uri, diagnostics);
     }
 
     private checkEndDirectives(document: vscode.TextDocument): vscode.Diagnostic[] {
-        const diagnostics: vscode.Diagnostic[] = [];
-        const text = document.getText();
-        const lines = text.split('\n').map(line => line.trim());
-        const fileName = document.fileName;
-        const isOdeFile = fileName.endsWith('.ode');
-        const isIncFile = fileName.endsWith('.inc');
-        const directive = isOdeFile ? 'done' : '#done';
-        const errorMessage = isOdeFile ? 'Missing "done" at the end of the .ode file' : 'Missing "#done" at the end of the .inc file';
+        const isOdeFile = document.fileName.endsWith('.ode');
+        const isIncFile = document.fileName.endsWith('.inc');
+        if (!isOdeFile && !isIncFile) return [];
 
-        if (isOdeFile || isIncFile) {
-            const lastNonEmptyLine = lines.reverse().find(line => line !== '' && !(line.startsWith('#') && line !== directive));
-            if (lastNonEmptyLine !== directive) {
-                const range = new vscode.Range(document.lineCount - 1, 0, document.lineCount - 1, lastNonEmptyLine?.length || 0);
-                diagnostics.push(new vscode.Diagnostic(range, errorMessage, vscode.DiagnosticSeverity.Error));
-            }
-        }
-
-        return diagnostics;
+        const lines = document.getText().split(/\r?\n/);
+        return checkEndDirective(lines, isIncFile).map(res => {
+            const range = new vscode.Range(res.line, res.start, res.line, res.end);
+            return new vscode.Diagnostic(range, res.message, vscode.DiagnosticSeverity.Error);
+        });
     }
-    
+
     public dispose() {
-        if (this.debounceTimer) {
-            clearTimeout(this.debounceTimer);
-        }
+        this.pendingChecks.forEach(timer => clearTimeout(timer));
+        this.pendingChecks.clear();
         this.diagnosticCollection.dispose();
     }
 }

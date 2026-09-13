@@ -2,89 +2,65 @@ import * as vscode from 'vscode';
 import { XppRenameProvider } from './providers/renameProvider';
 import { XppDocumentHighlightProvider } from './providers/highlightProvider';
 import { DiagnosticManager } from './diagnostics/diagnosticManager';
-import { supportedFiles } from './utils/constants';
+import { isXppDocument, isOdeOrIncPath, XPP_LANGUAGE_ID } from './utils/constants';
 import { toggleComment } from './utils/commenting';
 import { handleNewFile } from './utils/fileHandler';
 import { RunOdeFileProvider } from './providers/RunOdeFileProvider';
 import { ExtractVariableProvider } from './providers/extractVariableProvider';
+
+const XPP_SELECTOR: vscode.DocumentSelector = { scheme: 'file', language: XPP_LANGUAGE_ID };
 
 let diagnosticManager: DiagnosticManager;
 
 export function activate(context: vscode.ExtensionContext) {
     diagnosticManager = new DiagnosticManager();
 
-    // Check all open text documents
-    vscode.workspace.textDocuments.forEach((document) => {
-        if (supportedFiles(document)) {
-            diagnosticManager.checkFile(document);
-        }
+    vscode.workspace.textDocuments.filter(isXppDocument).forEach((document) => {
+        diagnosticManager.checkFile(document);
     });
 
     context.subscriptions.push(
+        diagnosticManager,
         vscode.workspace.onDidSaveTextDocument((document) => {
-            if (supportedFiles(document)) {
-                // On save, we want immediate feedback so use checkFile
+            if (isXppDocument(document)) {
                 diagnosticManager.checkFile(document);
             }
         }),
         vscode.workspace.onDidOpenTextDocument((document) => {
-            if (supportedFiles(document)) {
+            if (isXppDocument(document)) {
                 diagnosticManager.checkFile(document);
             }
         }),
         vscode.workspace.onDidChangeTextDocument((event) => {
-            if (supportedFiles(event.document)) {
-                // For changes, use debounced version
+            if (isXppDocument(event.document)) {
                 diagnosticManager.scheduleCheckFile(event.document);
             }
         }),
-        vscode.languages.registerRenameProvider(
-            { scheme: 'file', language: 'xpp' },
-            new XppRenameProvider()
-        ),
-        vscode.languages.registerDocumentHighlightProvider(
-            { scheme: 'file', language: 'xpp' },
-            new XppDocumentHighlightProvider()
-        ),
+        vscode.workspace.onDidCloseTextDocument((document) => {
+            diagnosticManager.clear(document);
+        }),
+        vscode.languages.registerRenameProvider(XPP_SELECTOR, new XppRenameProvider()),
+        vscode.languages.registerDocumentHighlightProvider(XPP_SELECTOR, new XppDocumentHighlightProvider()),
         vscode.workspace.onDidCreateFiles((event) => {
-            event.files.forEach((file) => {
-                vscode.workspace.openTextDocument(file).then((document) => {
-                    handleNewFile(document);
+            event.files
+                .filter((file) => isOdeOrIncPath(file.fsPath))
+                .forEach((file) => {
+                    vscode.workspace.openTextDocument(file).then(handleNewFile);
                 });
-            });
+        }),
+        vscode.commands.registerTextEditorCommand('xpp.toggleComment', (editor) => {
+            if (isXppDocument(editor.document)) {
+                toggleComment(editor);
+            }
         })
     );
 
-    // Register comment command only for XPP files
-    let disposable = vscode.commands.registerTextEditorCommand('xpp.toggleComment', (editor) => {
-        if (editor.document.languageId === 'xpp') {
-            toggleComment(editor);
-        }
-    });
-
-    context.subscriptions.push(disposable);
-
-    // Initialize the RunOdeFileProvider
     new RunOdeFileProvider(context);
 
-    // Register extract variable command
     const extractVariableProvider = new ExtractVariableProvider();
     context.subscriptions.push(
         vscode.commands.registerCommand('xpp.extractVariable', () => {
             extractVariableProvider.extractVariable();
         })
     );
-
-    // Check all open text documents again after the extension is activated
-    vscode.workspace.textDocuments.forEach((document) => {
-        if (supportedFiles(document)) {
-            diagnosticManager.checkFile(document);
-        }
-    });
-}
-
-export function deactivate() {
-    if (diagnosticManager) {
-        diagnosticManager.dispose();
-    }
 }

@@ -5,7 +5,7 @@ interface LineMapping {
     newStart: number;
     newEnd: number;
     delta: number;
-    // Index (relative to the line) where the “real” text begins.
+    // Index (relative to the line) where the "real" text begins.
     originalContentStart: number;
     newContentStart: number;
 }
@@ -15,130 +15,83 @@ export interface ToggleCommentResult {
     lineMappings: LineMapping[];
 }
 
+/** Removes the comment marker (and, for `stripSpace`, one following space) but keeps the indentation. */
+function uncomment(line: string, marker: RegExp): string {
+    return line.replace(marker, '$1');
+}
+
+function contentStart(line: string): number {
+    const index = line.search(/\S/);
+    return index === -1 ? 0 : index;
+}
+
 export function toggleCommentCore(input: string, isIncFile: boolean = false): ToggleCommentResult {
     // Split the input into lines, preserving newline characters.
     const lines = input.split(/(?<=\n)/);
 
-    // Precompute some booleans based on the whole set of lines.
+    const isCommentLine = (trimmedText: string) =>
+        trimmedText.startsWith('#') && !trimmedText.startsWith('#include');
+
     const allLinesAreComments = lines.every(line => {
         const trimmedText = line.trim();
-        return (
-            trimmedText.length === 0 ||
-            (trimmedText.startsWith('#') && !trimmedText.startsWith('#include'))
-        );
+        return trimmedText.length === 0 || isCommentLine(trimmedText);
     });
-
-    const hasCommentedLine = lines.some(line => {
-        const trimmedText = line.trim();
-        return (
-            trimmedText.length > 0 &&
-            trimmedText.startsWith('#') &&
-            !trimmedText.startsWith('#include')
-        );
-    });
-
-    const allLinesAreValidCode = lines.every(line => {
-        const trimmedText = line.trim();
-        return (
-            trimmedText.length === 0 ||
-            !trimmedText.startsWith('#') ||
-            trimmedText.startsWith('#include')
-        );
-    });
-
     const allLinesAreEmpty = lines.every(line => line.trim().length === 0);
 
     const lineMappings: LineMapping[] = [];
     let originalOffset = 0;
     let newOffset = 0;
-    
-    
-    // Process each line and record mapping info.
+
     const processedLines = lines.map((line, i) => {
-        const origContentStart = line.search(/\S/) === -1 ? 0 : line.search(/\S/);
+        const origContentStart = contentStart(line);
         const trimmedText = line.replace(/^\s+/, '');
 
         let newLine: string;
 
-        // Handle empty lines
         if (trimmedText.length === 0) {
-            if (allLinesAreEmpty) {
-                newLine = `# ${line}`;
-            } else if (allLinesAreComments) {
-                newLine = line;
+            // Empty lines are left alone inside an all-comment block being uncommented
+            newLine = allLinesAreComments && !allLinesAreEmpty ? line : `# ${line}`;
+        } else if (trimmedText.startsWith('#include')) {
+            // "#include" is code, never a comment
+            newLine = `# ${line}`;
+        } else if (isIncFile && trimmedText.startsWith('#done')) {
+            // "#done" is code in .inc files
+            newLine = `# ${line}`;
+        } else if (!isIncFile && trimmedText.startsWith('#done')) {
+            newLine = allLinesAreComments ? uncomment(line, /^(\s*)#\s*/) : `# ${line}`;
+        } else if (trimmedText.startsWith('##')) {
+            newLine = uncomment(line, /^(\s*)#/);
+        } else if (trimmedText.startsWith('# ')) {
+            if (allLinesAreComments) {
+                newLine = trimmedText === '# ' ? '\n' : uncomment(line, /^(\s*)# /);
             } else {
                 newLine = `# ${line}`;
             }
-        }
-        // Handle #include as a special case
-        else if (trimmedText.startsWith('#include')) {
+        } else if (trimmedText.startsWith('#')) {
+            if (allLinesAreComments) {
+                newLine = trimmedText === '#' ? '\n' : uncomment(line, /^(\s*)#/);
+            } else {
+                newLine = `# ${line}`;
+            }
+        } else {
             newLine = `# ${line}`;
         }
-        // Handle #done in .inc files as valid code
-        else if (isIncFile && trimmedText.startsWith('#done')) {
-            newLine = `# ${line}`;
-        }
-        // Handle #done in non-.inc files as a comment
-        else if (!isIncFile && trimmedText.startsWith('#done')) {
-            if (allLinesAreComments) {
-                newLine = line.replace(/^\s*#\s*/, '');
-            } else {
-                newLine = `# ${line}`;
-            }
-        }
-        // Handle lines with multiple # characters
-        else if (trimmedText.startsWith('##')) {
-            newLine = line.replace(/^\s*#/, '');
-        }
-        // Handle lines with "# " (e.g., "# done") when not in .inc files
-        else if (trimmedText.startsWith('# ')) {
-            if (allLinesAreComments) {
-                newLine = trimmedText === '# ' ? "\n" : line.replace(/^\s*# /, '');
-            } else {
-                newLine = `# ${line}`;
-            }
-        }
-        // Handle general comments
-        else if (trimmedText.startsWith('#')) {
-            if (allLinesAreComments) {
-                newLine = trimmedText === '#' ? "\n" : line.replace(/^\s*#/, '');
-            } else if (hasCommentedLine) {
-                newLine = `# ${line}`;
-            } else {
-                newLine = line.replace(/^\s*#/, '');
-            }
-        }
-        // Handle valid code
-        else {
-            // In both cases below the logic is the same, but you might change it later.
-            if (hasCommentedLine) {
-                newLine = `# ${line}`;
-            } else {
-                newLine = `# ${line}`;
-            }
-        }
 
-        // Compute content start in the new line.
-        const newContentStart = newLine.search(/\S/) === -1 ? 0 : newLine.search(/\S/);
-
-        const originalLength = line.length;
-        const newLength = newLine.length;
         const mapping: LineMapping = {
             line: i,
             originalStart: originalOffset,
-            originalEnd: originalOffset + originalLength,
+            originalEnd: originalOffset + line.length,
             newStart: newOffset,
-            newEnd: newOffset + newLength,
-            delta: newLength - originalLength,
+            newEnd: newOffset + newLine.length,
+            delta: newLine.length - line.length,
             originalContentStart: origContentStart,
-            newContentStart: newContentStart
+            newContentStart: contentStart(newLine)
         };
         lineMappings.push(mapping);
-        originalOffset += originalLength;
-        newOffset += newLength;
+        originalOffset += line.length;
+        newOffset += newLine.length;
         return newLine;
     });
 
     return { output: processedLines.join(''), lineMappings };
-
 }

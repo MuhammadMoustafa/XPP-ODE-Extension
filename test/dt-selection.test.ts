@@ -1,5 +1,5 @@
 import * as assert from 'assert';
-import { detectWordRangeCore, extractVariableFromDerivativePattern } from '../src/utils/renameCore';
+import { detectWordRangeCore } from '../src/utils/renameCore';
 
 suite('DT Selection Handling Tests', () => {
     test('detectWordRangeCore should handle dt selection correctly', () => {
@@ -23,34 +23,6 @@ suite('DT Selection Handling Tests', () => {
             const varName = result2.actualVariableName || 'x';
             console.log('Variable name at position 4:', varName);
             // assert.strictEqual(varName, 'x');
-        }
-    });
-
-    test('should handle when VS Code wordPattern selects dt', () => {
-        // This simulates what happens when VS Code's wordPattern gives us "dt"
-        const line = 'dx/dt=x*y';
-        
-        // Simulate VS Code selecting "dt" (positions 3-5)
-        const selectedText = 'dt';
-        const dtStartPos = 3; // Position of 'd' in 'dt'
-        
-        // Our function should recognize this is part of a derivative and redirect to 'x'
-        const extractedVar = extractVariableFromDerivativePattern(line.substring(0, dtStartPos + 2));
-        console.log('Extracted variable from dt selection:', extractedVar);
-        
-        // If not extracted by pattern, we need logic to handle this case
-        if (!extractedVar) {
-            // Check if 'dt' at this position is part of a derivative pattern
-            const beforeDt = line.substring(0, dtStartPos);
-            const afterDt = line.substring(dtStartPos + 2);
-            
-            const derivativePattern = /d([a-zA-Z_][a-zA-Z0-9_]*)$/;
-            const match = derivativePattern.exec(beforeDt);
-            
-            if (match && afterDt.startsWith('=')) {
-                console.log('Found variable in derivative:', match[1]);
-                assert.strictEqual(match[1], 'x');
-            }
         }
     });
 

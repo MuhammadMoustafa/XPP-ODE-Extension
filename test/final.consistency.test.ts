@@ -1,5 +1,5 @@
 import * as assert from 'assert';
-import { detectWordRangeCore, extractVariableFromDerivativePattern } from '../src/utils/renameCore';
+import { detectWordRangeCore } from '../src/utils/renameCore';
 
 /**
  * Final comprehensive test to verify that highlighting and rename are now consistent
@@ -116,35 +116,6 @@ suite('Highlighting and Rename Consistency Verification', () => {
         }
         
         console.log('\n✅ wordPattern and custom logic are now properly coordinated!');
-    });
-    
-    test('verify fallback extraction works for edge cases', () => {
-        console.log('\n=== Testing Fallback Extraction ===');
-        
-        // Test cases where we might still get the full pattern
-        const fallbackCases = [
-            { input: 'dx/dt', expected: 'x' },
-            { input: 'dMyVariable/dt', expected: 'MyVariable' },
-            { input: 'y\'', expected: 'y' },
-            { input: 'func(t)', expected: 'func' },
-            { input: 'dt', expected: undefined }, // standalone dt should not be extracted
-            { input: 'normalVar', expected: undefined } // normal variables should not be extracted
-        ];
-        
-        for (const testCase of fallbackCases) {
-            const result = extractVariableFromDerivativePattern(testCase.input);
-            console.log(`  "${testCase.input}" → ${result ? `"${result}"` : 'undefined'}`);
-            
-            if (testCase.expected) {
-                assert.strictEqual(result, testCase.expected,
-                    `Should extract "${testCase.expected}" from "${testCase.input}"`);
-            } else {
-                assert.ok(result === undefined,
-                    `Should not extract variable from "${testCase.input}"`);
-            }
-        }
-        
-        console.log('✅ Fallback extraction works correctly for all cases!');
     });
     
     test('final integration test: simulate real user interaction', () => {

@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { detectWordRangeCore, findRenameOccurrences, isInComment } from './renameCore';
+import { detectWordRangeCore, findRenameOccurrences, isInComment, isRenameScopedToFunction } from './renameCore';
 
 /**
  * Core detection result that both highlighting and renaming use
@@ -13,21 +13,25 @@ export interface ProviderDetectionResult {
     contextPosition: { line: number; character: number };
 }
 
+function documentLines(document: vscode.TextDocument): string[] {
+    return Array.from({ length: document.lineCount }, (_, i) => document.lineAt(i).text);
+}
+
 /**
  * Shared logic for both highlight and rename providers
  * This ensures consistent behavior between highlighting and renaming
  */
 export class ProviderCore {
-    
+
     /**
      * Detects what variable should be highlighted/renamed at the given position
      * Returns null if nothing should be detected (comments, operators, etc.)
      */
     static detectVariableAtPosition(
-        document: vscode.TextDocument, 
+        document: vscode.TextDocument,
         position: vscode.Position
     ): ProviderDetectionResult | null {
-        
+
         const lineText = document.lineAt(position.line).text;
 
         // Fail fast: reject comments immediately
@@ -41,13 +45,11 @@ export class ProviderCore {
             return dtRedirection;
         }
 
-        // Use core detection logic
         const wordRangeInfo = detectWordRangeCore(lineText, position.character, position.line);
         if (!wordRangeInfo) {
             return null;
         }
 
-        // Convert core result to provider result
         const variableRange = new vscode.Range(
             wordRangeInfo.range.start.line,
             wordRangeInfo.range.start.character,
@@ -72,14 +74,14 @@ export class ProviderCore {
         position: vscode.Position,
         lineText: string
     ): ProviderDetectionResult | null {
-        
+
         const wordAtPosition = document.getWordRangeAtPosition(position);
         if (!wordAtPosition) {
             return null;
         }
 
         const selectedWord = document.getText(wordAtPosition);
-        if (selectedWord !== 'dt') {
+        if (selectedWord.toLowerCase() !== 'dt') {
             return null;
         }
 
@@ -87,7 +89,7 @@ export class ProviderCore {
         const dtStart = wordAtPosition.start.character;
         const beforeDt = lineText.substring(0, dtStart);
         const derivativeMatch = /d([a-zA-Z_][a-zA-Z0-9_]*)\/$/i.exec(beforeDt);
-        
+
         if (!derivativeMatch) {
             return null;
         }
@@ -96,7 +98,7 @@ export class ProviderCore {
         const variableName = derivativeMatch[1];
         const varStart = dtStart - derivativeMatch[0].length + 1; // +1 to skip 'd'
         const varEnd = varStart + variableName.length;
-        
+
         const variableRange = new vscode.Range(position.line, varStart, position.line, varEnd);
 
         return {
@@ -113,20 +115,15 @@ export class ProviderCore {
         document: vscode.TextDocument,
         detection: ProviderDetectionResult
     ): vscode.DocumentHighlight[] {
-        
-        // Get all lines for processing
-        const lines = Array.from({ length: document.lineCount }, (_, i) => document.lineAt(i).text);
-        
-        // Find all occurrences
+
         const renameResults = findRenameOccurrences(
-            lines, 
-            detection.variableName, 
+            documentLines(document),
+            detection.variableName,
             detection.variableName, // dummy replacement, we just want positions
             detection.contextPosition.line,
             detection.contextPosition.character
         );
 
-        // Convert to highlight ranges
         return renameResults.map(result => {
             const range = new vscode.Range(result.line, result.start, result.line, result.end);
             return new vscode.DocumentHighlight(range);
@@ -134,7 +131,9 @@ export class ProviderCore {
     }
 
     /**
-     * Performs the actual rename operation across files
+     * Performs the actual rename operation across files.
+     * A function-parameter rename stays inside the originating document; any other rename
+     * is applied to every .ode/.inc file in the workspace.
      */
     static async performRename(
         document: vscode.TextDocument,
@@ -142,38 +141,38 @@ export class ProviderCore {
         newName: string,
         token: vscode.CancellationToken
     ): Promise<vscode.WorkspaceEdit> {
-        
+
         const edit = new vscode.WorkspaceEdit();
-        const uris = await vscode.workspace.findFiles('**/*.{ode,inc}');
-        
-        if (token.isCancellationRequested) {
-            throw new Error('Rename operation cancelled');
-        }
+        const originLines = documentLines(document);
+        const { line: originLine, character: originCharacter } = detection.contextPosition;
 
-        // Process each file
-        for (const uri of uris) {
-            if (token.isCancellationRequested) {
-                throw new Error('Rename operation cancelled');
-            }
-            
-            const doc = await vscode.workspace.openTextDocument(uri);
-            const lines = Array.from({ length: doc.lineCount }, (_, i) => doc.lineAt(i).text);
-            
-            const renameResults = findRenameOccurrences(
-                lines, 
-                detection.variableName, 
-                newName,
-                detection.contextPosition.line,
-                detection.contextPosition.character
-            );
-
-            // Apply edits to this file
+        const applyResults = (uri: vscode.Uri, lines: string[], withContext: boolean) => {
+            const renameResults = withContext
+                ? findRenameOccurrences(lines, detection.variableName, newName, originLine, originCharacter)
+                : findRenameOccurrences(lines, detection.variableName, newName);
             for (const result of renameResults) {
                 const range = new vscode.Range(result.line, result.start, result.line, result.end);
                 edit.replace(uri, range, result.newText);
             }
+        };
+
+        applyResults(document.uri, originLines, true);
+
+        if (isRenameScopedToFunction(originLines, detection.variableName, originLine, originCharacter)) {
+            return edit;
         }
-        
+
+        const uris = await vscode.workspace.findFiles('**/*.{ode,inc}', '**/node_modules/**');
+        for (const uri of uris) {
+            if (token.isCancellationRequested) {
+                throw new Error('Rename operation cancelled');
+            }
+            if (uri.toString() === document.uri.toString()) continue;
+
+            const doc = await vscode.workspace.openTextDocument(uri);
+            applyResults(uri, documentLines(doc), false);
+        }
+
         return edit;
     }
 }

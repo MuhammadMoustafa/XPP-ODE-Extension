@@ -21,3 +21,4 @@ src/
 .git/**
 node_modules/**/.bin
 coverage/**
+xppall/**

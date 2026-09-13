@@ -17,6 +17,11 @@ To learn how to customize the xppaut start command please refer to [How to Custo
 
 ## Version 0.4.0
 
+- Bug fixes: parentheses checking after comments, renaming globals used inside function bodies, indentation after uncommenting, and seeding of newly created files.
+- `#` inside `int{...}` is treated as the convolution operator; code after `done` is reported as an error.
+- Reserved words, declaration keywords, and `@` options updated from the XPPAUT documentation.
+- Syntax highlighting fixes for function calls and builtins.
+
 ## Version 0.3.0
 
 - All derivative formats are now renamed and highlighted correctly. (Please report any malfunction cases.)
@@ -79,11 +84,56 @@ To learn how to customize the xppaut start command please refer to [How to Custo
 
 ---
 
+## Diagnostics
+
+The extension checks each `.ode`/`.inc` file as you type and reports:
+
+- **Errors**: missing `done`, code after `done`, unbalanced brackets, reserved words used as names, duplicate or conflicting names, `@` options that XPP would silently ignore, and `solv` lines with spaces around `=`.
+- **Warnings**: undefined names, unused parameters/fixed variables/functions (shown faded), initial conditions for names that are not state variables, lines XPP does not recognise and silently skips, unknown `@` option names, and fixed variables named like a keyword (`p=1`).
+
+Names defined in `#include`d files count as defined. Inside an `.inc` file the undefined-name check is off, because the including `.ode` file may define them.
+
+<details>
+<summary><strong>The XPP syntax rules behind these checks</strong></summary>
+
+All of these were verified by running files through `xppaut` 8.0.
+
+**How XPP decides what a line is**
+
+| Line looks like | XPP reads it as |
+|---|---|
+| `word name ...` (a word, a **space**, then a name) | a declaration chosen by the first letters of `word` |
+| `word=...` or `word = ...` | a fixed variable called `word`, whatever `word` is |
+| `x'=`, `dx/dt=`, `x(t+1)=`, `x(t)=` | a state variable |
+| `x(0)=` | an initial condition |
+| `f(a,b)=` | a function |
+| `!a=` | a derived parameter |
+| `0=` | an algebraic condition |
+| `@ ...` | options |
+| `#...` or `"...` | a comment |
+| a word starting with `d` alone on a line (`done`, `d`) | end of file, everything after it is ignored |
+| anything else | **silently ignored** |
+
+**Keyword prefixes.** Only the first letters of the keyword matter: `p`, `par`, `param`, `params` and `parameter` all declare parameters. Single letters work for `p`(ar), `i`(nit), `w`(iener), `n`(umber), `g`(lobal), `b`(dry), `v`(olt), `o`(ptions) and `d`(one); two letters are needed for `au`(x), `ma`(rkov), `ta`(ble), `se`(t), `so`(lv), `sp`(ecial), `ex`(port), `im`(port) and `on`(ly). The separator after the keyword must be a space; a tab makes XPP read `init<tab>x=5` as a fixed variable named `initx`.
+
+**Keywords are not reserved names.** `p=1`, `par=1`, `done=1` and `dt=1` are all legal fixed variables, because the `=` directly after the word wins. The extension only warns about them because they are easy to misread. The names XPP really rejects are the builtin functions (`sin`, `heav`, `delay`, ...), `if`/`then`/`else`, `arg1`..`arg9`, `t`, `pi` and `set`.
+
+**Where spaces around `=` matter.**
+
+| Form | Spaces around `=` |
+|---|---|
+| `@ dt=0.1,total=100` | **not allowed**: `@ dt = 0.1` is silently ignored and the default is used |
+| `solv y=-.5` | **not allowed**: XPP fails to load the file |
+| `par a = 1`, `init x = 0`, `aux z = x`, `x' = -x`, `f(x) = 2*x`, `x(0) = 1`, `!a = b*2`, `0 = y-x`, `global 1 x-1 {x = 0}` | allowed |
+
+**Lists.** `par` and `init` items may be separated by commas or by spaces (`par a=1  b=2`), and a parameter may be listed without a value (`par ind`, which gives it 0).
+
+**Comments and `#`.** `#` starts a comment except inside braces, where it is the Volterra convolution operator: `y(t)=int{exp(-t)#x}`.
+
+</details>
+
 ## Future Work
 
-- Add all XPPAUT and AUTO option keywords.
-- Detect undefined variables.
-- Detect unused variables and gray them out.
 - Handle active comments.
 
 ---

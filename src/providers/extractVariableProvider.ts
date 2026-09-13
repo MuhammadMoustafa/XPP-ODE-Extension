@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import { escapeRegExp, isInComment, isReservedWord } from '../utils/renameCore';
 
 export class ExtractVariableProvider {
     public async extractVariable() {
@@ -7,46 +8,51 @@ export class ExtractVariableProvider {
 
         const document = editor.document;
         const selection = editor.selection;
-        
+
         if (selection.isEmpty) {
             vscode.window.showErrorMessage('Please select an expression to extract.');
             return;
         }
 
-        const selectedText = document.getText(selection);
+        const selectedText = document.getText(selection).trim();
+        if (!selectedText) {
+            vscode.window.showErrorMessage('Please select an expression to extract.');
+            return;
+        }
+
         const variable = await vscode.window.showInputBox({
             prompt: 'Enter new variable name',
-            placeHolder: 'newVariable'
+            placeHolder: 'newVariable',
+            validateInput: (value) => {
+                if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(value)) return 'Not a valid XPP identifier.';
+                if (isReservedWord(value)) return `'${value}' is a reserved word in XPP.`;
+                return null;
+            }
         });
 
         if (!variable) return;
 
-        // Find all occurrences of the selected text
-        const occurrences: vscode.Range[] = [];
-        const text = document.getText();
-        const regex = new RegExp(this.escapeRegExp(selectedText), 'g');
-        let match;
+        // Match the expression only at token boundaries and outside comments
+        const boundaryStart = /^[a-zA-Z0-9_]/.test(selectedText) ? '\\b' : '';
+        const boundaryEnd = /[a-zA-Z0-9_]$/.test(selectedText) ? '\\b' : '';
+        const regex = new RegExp(`${boundaryStart}${escapeRegExp(selectedText)}${boundaryEnd}`, 'g');
 
-        while ((match = regex.exec(text)) !== null) {
-            const startPos = document.positionAt(match.index);
-            const endPos = document.positionAt(match.index + match[0].length);
-            occurrences.push(new vscode.Range(startPos, endPos));
+        const occurrences: vscode.Range[] = [];
+        for (let i = 0; i < document.lineCount; i++) {
+            const lineText = document.lineAt(i).text;
+            let match;
+            while ((match = regex.exec(lineText)) !== null) {
+                if (isInComment(lineText, match.index)) continue;
+                occurrences.push(new vscode.Range(i, match.index, i, match.index + match[0].length));
+            }
         }
 
-        // Apply the replacements
         editor.edit(editBuilder => {
-            // Add the variable declaration at the start of the selection
             const declarationPos = new vscode.Position(selection.start.line, 0);
             editBuilder.insert(declarationPos, `${variable}=${selectedText}\n`);
-
-            // Replace all occurrences with the new variable
             occurrences.forEach(range => {
                 editBuilder.replace(range, variable);
             });
         });
-    }
-
-    private escapeRegExp(string: string): string {
-        return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     }
 }
