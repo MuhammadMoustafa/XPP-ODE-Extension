@@ -10,7 +10,7 @@
 	},
 	"repository": {
 		"type": "git",
-		"url": "https://github.com/MuhammadMoustafa/XPP-ODE-Extension",
+		"url": "git+https://github.com/MuhammadMoustafa/XPP-ODE-Extension.git",
 		"home": "https://github.com/MuhammadMoustafa/XPP-ODE-Extension/blob/master/README.md"
 	},
 	"icon": "images/icon.png",
@@ -18,12 +18,15 @@
 	"scripts": {
 		"vscode:prepublish": "npm run compile",
 		"compile": "tsc -p ./",
-		"test": "mocha --require ts-node/register --ui tdd test/*.test.ts"
+		"test": "mocha --require ts-node/register --ui tdd test/*.test.ts",
+		"package": "vsce package",
+		"publish:vscode": "vsce publish"
 	},
 	"devDependencies": {
 		"@types/mocha": "^10.0.10",
 		"@types/node": "^20.19.0",
 		"@types/vscode": "~1.82.0",
+		"@vscode/vsce": "^3.9.2",
 		"mocha": "^11.1.0",
 		"ts-node": "^10.9.2",
 		"typescript": "^5.9.0"
@@ -83,7 +86,7 @@
 					"command": "xpp.runOdeFile",
 					"group": "navigation",
 					"when": "resourceLangId == xpp"
-					}
+				}
 			],
 			"editor/context": [
 				{

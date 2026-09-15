@@ -22,3 +22,8 @@ src/
 node_modules/**/.bin
 coverage/**
 xppall/**
+
+# local-only folders (git-ignored too)
+docs/**
+ode/**
+!CHANGELOG.md

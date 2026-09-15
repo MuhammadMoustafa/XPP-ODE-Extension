@@ -10,28 +10,18 @@ suite('Provider Consistency Tests', () => {
             { line: 'x=1 # dx/dt should not be detected', position: 15, desc: 'cursor on dx in comment' },
         ];
         
-        console.log('\n=== Comment Detection Test ===');
         
         for (const testCase of testCases) {
-            console.log(`Testing: ${testCase.desc}`);
-            console.log(`Line: "${testCase.line}"`);
-            console.log(`Position: ${testCase.position} (char: "${testCase.line[testCase.position] || 'EOF'}")`);
             
             // Test isInComment function
             const inComment = isInComment(testCase.line, testCase.position);
-            console.log(`isInComment result: ${inComment}`);
             
             // Test detectWordRangeCore - should return null for comments
             const wordRange = detectWordRangeCore(testCase.line, testCase.position, 0);
-            console.log(`detectWordRangeCore result: ${wordRange ? 'detected' : 'null'}`);
             
             if (inComment) {
                 assert.strictEqual(wordRange, undefined, `Should not detect word in comment: ${testCase.desc}`);
-                console.log('✅ Correctly rejected comment position');
-            } else {
-                console.log('ℹ️ Position not in comment area');
             }
-            console.log('');
         }
     });
 
@@ -45,17 +35,12 @@ suite('Provider Consistency Tests', () => {
             { line: 'x = 2.5 + 3', position: 8, char: '+', desc: 'plus operator' },
         ];
         
-        console.log('\n=== Inappropriate Position Test ===');
         
         for (const testCase of testCases) {
-            console.log(`Testing: ${testCase.desc} ("${testCase.char}")`);
             
             const wordRange = detectWordRangeCore(testCase.line, testCase.position, 0);
-            console.log(`Result: ${wordRange ? 'detected' : 'null'}`);
             
             assert.strictEqual(wordRange, undefined, `Should not detect ${testCase.desc}`);
-            console.log('✅ Correctly rejected inappropriate position');
-            console.log('');
         }
     });
 
@@ -74,18 +59,12 @@ suite('Provider Consistency Tests', () => {
             { line: 'x + y', position: 2, shouldWork: false, desc: 'whitespace' },
         ];
         
-        console.log('\n=== Consistency Test ===');
         
         for (const testCase of testCases) {
-            console.log(`Testing: ${testCase.desc}`);
-            console.log(`Line: "${testCase.line}", Position: ${testCase.position}`);
             
             // Test core detection logic (used by both providers)
-            const inComment = isInComment(testCase.line, testCase.position);
             const wordRange = detectWordRangeCore(testCase.line, testCase.position, 0);
             
-            console.log(`In comment: ${inComment}`);
-            console.log(`Word range: ${wordRange ? 'detected' : 'null'}`);
             
             if (testCase.shouldWork) {
                 assert.notStrictEqual(wordRange, undefined, `Should detect word for: ${testCase.desc}`);
@@ -93,41 +72,30 @@ suite('Provider Consistency Tests', () => {
                     const actualVar = wordRange.actualVariableName;
                     if (actualVar) {
                         assert.strictEqual(actualVar, testCase.expectedVar, `Should detect variable "${testCase.expectedVar}"`);
-                        console.log(`✅ Correctly detected variable: ${actualVar}`);
                     }
                 }
             } else {
                 assert.strictEqual(wordRange, undefined, `Should NOT detect word for: ${testCase.desc}`);
-                console.log('✅ Correctly rejected inappropriate position');
             }
-            console.log('');
         }
         
-        console.log('🎉 Highlighting and Rename logic is now consistent!');
     });
 
     test('verify dt fallback scenarios work correctly', () => {
-        console.log('\n=== DT Fallback Test ===');
         
         const line = 'dx/dt=x*y';
-        console.log(`Testing line: "${line}"`);
         
         // Test positions 3 and 4 (the dt part)
         for (const pos of [3, 4]) {
-            console.log(`\nPosition ${pos} ("${line[pos]}"):`);
             
             const wordRange = detectWordRangeCore(line, pos, 0);
-            console.log(`detectWordRangeCore result:`, wordRange);
             
             assert.notStrictEqual(wordRange, undefined, `Position ${pos} should detect something`);
             if (wordRange) {
                 const actualVar = wordRange.actualVariableName;
-                console.log(`Detected variable: ${actualVar}`);
                 assert.strictEqual(actualVar, 'x', `Position ${pos} should detect variable "x"`);
-                console.log('✅ Correctly redirected dt to variable x');
             }
         }
         
-        console.log('\n🎉 DT fallback scenarios work correctly!');
     });
 });

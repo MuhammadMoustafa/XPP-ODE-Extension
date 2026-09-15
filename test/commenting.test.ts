@@ -174,7 +174,7 @@ const testCases = [
 suite('Commenting Core Tests', () => {
     testCases.forEach(({ description, input, expectedOutput, isIncFile }) => {
         test(description, () => {
-            const {output: output, lineMappings: lineMappings} = toggleCommentCore(input, isIncFile);
+            const { output } = toggleCommentCore(input, isIncFile);
             assert.strictEqual(output, expectedOutput);
         });
     });

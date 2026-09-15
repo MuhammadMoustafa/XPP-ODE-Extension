@@ -277,13 +277,9 @@ suite('Rename Tests', () => {
                 assert.strictEqual(result?.actualVariableName, 'myVariable', `actualVariableName should be 'myVariable' for position ${pos}`);
             }
             
-            // Test position 14 (on '=') should NOT match the dx/dt pattern anymore (after boundary fix)
+            // Position 14 (on '=') is outside the derivative pattern: whatever it detects, it must not be 'myVariable'
             const result14 = detectWordRangeCore(line, 14, 0);
-            // Position 14 is outside the derivative pattern, should either match nothing or match other variables
-            if (result14) {
-                // If it matches something, document what it is, but it shouldn't be from the derivative pattern
-                console.log(`Position 14 matches: '${result14.actualVariableName}'`);
-            }
+            assert.notStrictEqual(result14?.actualVariableName, 'myVariable', "Position 14 (on '=') should not match the dx/dt pattern");
         });
 
         test('should detect variable for single character variables in dx/dt pattern', () => {
@@ -694,9 +690,9 @@ suite('Rename Tests', () => {
             // Positions: d(0)s(1)h(2)/(3)d(4)t(5)=(6)...
 
             // Test moving backward from position after 't'
-            // Position 6 ('=') should NOT detect dx/dt pattern anymore (after boundary fix)
+            // Position 6 ('=') is outside the derivative pattern: whatever it detects, it must not be 'sh'
             const result6 = detectWordRangeCore(line, 6, 0);
-            // Position 6 is outside the derivative pattern, so it might match other variables or nothing
+            assert.notStrictEqual(result6?.actualVariableName, 'sh', "Position 6 ('=') should not detect the dx/dt pattern");
 
             // Position 5 ('t') should detect dx/dt pattern
             const result5 = detectWordRangeCore(line, 5, 0);
@@ -933,7 +929,6 @@ suite('Rename Tests', () => {
             
             for (const test of testPositions) {
                 const result = detectWordRangeCore(line, test.pos, 0);
-                console.log(`Pos ${test.pos} (${test.desc}): ${result ? (result.actualVariableName || 'detected range ' + result.range.start.character + '-' + result.range.end.character) : 'no result'}`);
                 
                 if (test.pos <= 14 && result) { // Within or at the derivative pattern
                     assert.strictEqual(result.actualVariableName, 'myVariable', 

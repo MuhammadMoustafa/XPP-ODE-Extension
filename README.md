@@ -5,14 +5,20 @@ This repository is a fork of [Joe-McCann's XPP-ODE-Extension repo](https://githu
 If you encounter any issues or have feature requests, feel free to open an issue or [email me](mailto:muhammadmoustafa22@gmail.com).  
 Logo designed by: [Manar Moustafa](mailto:manarmoustafa246@gmail.com).
 
-To learn how to customize the xppaut start command please refer to [How to Customize the Run Command](#how-to-customize-the-run-command) section.
+What you get for `.ode` and `.inc` files:
+
+- Syntax highlighting, bracket matching, and commenting with `Ctrl+/`.
+- [Diagnostics](#diagnostics): missing `done`, unbalanced brackets, reserved or duplicate names, undefined and unused names, options XPP would silently ignore.
+- Rename (`F2`) and highlight-all-occurrences for variables, parameters and functions, across `#include`d files; "Extract to Variable" from the context menu.
+- [Custom colours](#custom-colours-for-variables-and-parameters) per variable, parameter or category, shared by every model in a folder.
+- A ["Run ODE File" button](#how-to-customize-the-run-command) that starts xppaut on the current file, with the setup notes for Linux, macOS and Windows.
 
 ---
 
 ## Thank you list
 
 - **Nianqi Deng** for suggesting the ["Run ODE File" button](#how-to-customize-the-run-command)
-- **Leqi Wang** for suggesting [custom colours for variables and parameters](#custom-colours-for-variables-and-parameters)
+- **Leqi (Sammy) Wang** for suggesting [custom colours for variables and parameters](#custom-colours-for-variables-and-parameters)
 
 ---
 
