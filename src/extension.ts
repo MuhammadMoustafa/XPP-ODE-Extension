@@ -6,6 +6,7 @@ import { isXppDocument, isOdeOrIncPath, XPP_LANGUAGE_ID } from './utils/constant
 import { toggleComment } from './utils/commenting';
 import { handleNewFile } from './utils/fileHandler';
 import { RunOdeFileProvider } from './providers/RunOdeFileProvider';
+import { InteractiveProvider } from './providers/interactiveProvider';
 import { ExtractVariableProvider } from './providers/extractVariableProvider';
 import { IdentifierColorProvider } from './providers/identifierColorProvider';
 import { XppColorPickerProvider } from './providers/colorPickerProvider';
@@ -62,6 +63,7 @@ export function activate(context: vscode.ExtensionContext) {
     );
 
     new RunOdeFileProvider(context);
+    new InteractiveProvider(context);
 
     const extractVariableProvider = new ExtractVariableProvider();
     context.subscriptions.push(

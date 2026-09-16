@@ -1,0 +1,306 @@
+/* layout for xpp-client.js; colours follow the host theme when the VS Code
+   webview variables exist, otherwise a light palette */
+.xpp {
+  --xpp-bg: var(--vscode-editor-background, #f3f2ee);
+  --xpp-fg: var(--vscode-editor-foreground, #1d1d1b);
+  --xpp-panel: var(--vscode-sideBar-background, #e6e4dd);
+  --xpp-border: var(--vscode-panel-border, #b9b6ab);
+  --xpp-button: var(--vscode-button-secondaryBackground, #f8f7f3);
+  --xpp-button-fg: var(--vscode-button-secondaryForeground, #1d1d1b);
+  --xpp-accent: var(--vscode-focusBorder, #2f6fb3);
+  --xpp-error: var(--vscode-errorForeground, #b3261e);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 420px;
+  overflow-y: auto;
+  box-sizing: border-box;
+  background: var(--xpp-bg);
+  color: var(--xpp-fg);
+  font: 13px/1.3 var(--vscode-font-family, system-ui, sans-serif);
+  outline: none;
+}
+.xpp * { box-sizing: border-box; }
+.xpp > * { flex-shrink: 0; }
+.xpp [hidden] { display: none !important; }
+.xpp button {
+  font: inherit;
+  color: var(--xpp-button-fg);
+  background: var(--xpp-button);
+  border: 1px solid var(--xpp-border);
+  border-radius: 3px;
+  padding: 2px 8px;
+  cursor: pointer;
+}
+.xpp button:hover { border-color: var(--xpp-accent); }
+.xpp-title {
+  padding: 4px 8px;
+  font-weight: 600;
+  border-bottom: 1px solid var(--xpp-border);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.xpp-middle { display: flex; flex: 1 0 auto; min-height: max(420px, 70vh); }
+.xpp-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px;
+  width: 132px;
+  flex: none;
+  overflow-y: auto;
+  background: var(--xpp-panel);
+  border-right: 1px solid var(--xpp-border);
+}
+.xpp-menu-item { text-align: left; white-space: nowrap; }
+.xpp-plots { flex: 1; min-width: 0; display: flex; flex-direction: column; padding: 6px; }
+.xpp-plot-title { text-align: center; font-weight: 600; padding: 0 0 4px; min-height: 1.2em; }
+.xpp-main-plot { flex: 1; min-width: 0; min-height: 0; position: relative; }
+.xpp-tabs { display: flex; flex-wrap: wrap; gap: 2px; margin-bottom: 4px; border-bottom: 1px solid var(--xpp-border); }
+.xpp .xpp-tab { border-radius: 3px 3px 0 0; border-bottom: none; padding: 3px 12px; }
+.xpp .xpp-tab-on { background: var(--xpp-accent); color: #fff; border-color: var(--xpp-accent); }
+.xpp-page { flex: 1; min-height: 0; min-width: 0; }
+.xpp-main-page { display: flex; flex-direction: column; }
+.xpp-auto-grab {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 0 6px 6px;
+  padding: 4px 8px;
+  border: 1px solid var(--xpp-accent);
+  border-radius: 3px;
+}
+.xpp-main-plot canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+.xpp-canvas { display: block; background: #fff; outline: none; image-rendering: pixelated; }
+.xpp-canvas.xpp-active { box-shadow: 0 0 0 2px var(--xpp-accent); }
+.xpp-picking .xpp-canvas { cursor: crosshair; }
+.xpp-side {
+  width: 220px;
+  flex: none;
+  overflow-y: auto;
+  padding: 6px;
+  background: var(--xpp-panel);
+  border-left: 1px solid var(--xpp-border);
+}
+.xpp-go { display: flex; gap: 6px; margin-bottom: 8px; }
+.xpp-go button { flex: 1; }
+.xpp-values { margin-bottom: 10px; }
+.xpp-values-title { font-weight: 600; margin-bottom: 4px; }
+.xpp-value { display: flex; align-items: center; gap: 6px; margin: 2px 0; }
+.xpp-value-name {
+  width: 70px;
+  flex: none;
+  font-family: var(--vscode-editor-font-family, monospace);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.xpp-value-input, .xpp-field input {
+  flex: 1;
+  min-width: 0;
+  font: 12px var(--vscode-editor-font-family, monospace);
+  color: var(--vscode-input-foreground, inherit);
+  background: var(--vscode-input-background, #fff);
+  border: 1px solid var(--xpp-border);
+  padding: 1px 4px;
+}
+.xpp-extra { display: flex; flex-wrap: wrap; gap: 8px; padding: 0 6px; }
+.xpp-extra:empty { display: none; }
+.xpp-window {
+  border: 1px solid var(--xpp-border);
+  background: var(--xpp-panel);
+  margin: 6px 0;
+  max-width: 100%;
+  overflow: auto;
+}
+.xpp-plots > .xpp-window { margin: 0; }
+.xpp-window-title {
+  display: flex;
+  justify-content: space-between;
+  padding: 2px 6px;
+  font-weight: 600;
+  border-bottom: 1px solid var(--xpp-border);
+}
+.xpp-close { padding: 0 6px; }
+.xpp-auto { display: flex; gap: 6px; padding: 6px; }
+.xpp-auto-buttons { display: flex; flex-direction: column; gap: 2px; width: 112px; }
+.xpp-auto-right { display: flex; flex-direction: column; gap: 4px; }
+.xpp-auto-hint { font-family: var(--vscode-editor-font-family, monospace); min-height: 1.3em; }
+.xpp-abort { margin-top: 12px; }
+.xpp-ani-buttons { display: flex; gap: 4px; padding: 4px; flex-wrap: wrap; }
+.xpp-eq, .xpp-source { padding-bottom: 4px; }
+.xpp-eq-counts, .xpp-eq-value { padding: 1px 6px; font-family: var(--vscode-editor-font-family, monospace); }
+.xpp-source pre { margin: 0; padding: 6px; overflow: auto; }
+.xpp-plots > .xpp-source { max-height: max(420px, 70vh); overflow: auto; }
+.xpp-status {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 3px 8px;
+  border-top: 1px solid var(--xpp-border);
+  min-height: 1.6em;
+  font-family: var(--vscode-editor-font-family, monospace);
+}
+.xpp-error { color: var(--xpp-error); }
+.xpp-ping { outline: 2px solid var(--xpp-error); }
+.xpp-dialogs {
+  position: fixed;
+  inset: 0;
+  z-index: 10; /* above sticky table headers */
+  pointer-events: none;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 48px;
+}
+.xpp-dialog {
+  pointer-events: auto;
+  min-width: 240px;
+  max-width: min(520px, 92%);
+  max-height: 80%;
+  overflow: auto;
+  padding: 10px;
+  background: var(--vscode-editorWidget-background, #fff);
+  border: 1px solid var(--xpp-border);
+  border-radius: 4px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.25);
+}
+.xpp-dialog-title { font-weight: 600; margin-bottom: 8px; }
+.xpp-popup { display: flex; flex-direction: column; gap: 2px; }
+.xpp-default { border-color: var(--xpp-accent); }
+.xpp-cancel { margin-top: 6px; }
+.xpp-question { margin-bottom: 10px; }
+.xpp-buttons { display: flex; gap: 6px; margin-top: 8px; }
+.xpp-form { display: flex; flex-direction: column; gap: 4px; }
+.xpp-field { display: flex; align-items: center; gap: 8px; }
+.xpp-field span { width: 120px; flex: none; }
+.xpp-check { display: block; margin: 2px 0; }
+.xpp-errors { display: flex; flex-direction: column; gap: 4px; padding: 0 6px; }
+.xpp-errors:empty { display: none; }
+.xpp-error-item {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 4px 8px;
+  margin-top: 6px;
+  padding: 6px 8px;
+  color: var(--vscode-inputValidation-errorForeground, #5c0d08);
+  background: var(--vscode-inputValidation-errorBackground, #fbe3e1);
+  border: 1px solid var(--vscode-inputValidation-errorBorder, #b3261e);
+  border-radius: 4px;
+}
+.xpp-error-text { font-weight: 600; }
+.xpp-error-detail {
+  grid-column: 1 / -1;
+  margin: 0;
+  max-height: 240px;
+  overflow: auto;
+  white-space: pre-wrap;
+  font: 12px var(--vscode-editor-font-family, monospace);
+}
+.xpp-log { padding: 0 6px; }
+.xpp-log summary { cursor: pointer; padding: 3px 0; }
+.xpp-log-text {
+  margin: 0;
+  max-height: 200px;
+  overflow: auto;
+  white-space: pre-wrap;
+  font: 12px var(--vscode-editor-font-family, monospace);
+  border: 1px solid var(--xpp-border);
+  padding: 4px 6px;
+}
+.xpp-narrow .xpp-middle { flex-direction: column; }
+.xpp-narrow .xpp-menu {
+  width: auto;
+  flex-direction: row;
+  flex-wrap: wrap;
+  border-right: none;
+  border-bottom: 1px solid var(--xpp-border);
+}
+.xpp-narrow .xpp-plots { min-height: 360px; }
+.xpp-narrow .xpp-side { width: auto; border-left: none; border-top: 1px solid var(--xpp-border); }
+.xpp-row { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 6px; }
+.xpp-row button { flex: 1 1 auto; }
+.xpp-values > summary.xpp-values-title { cursor: pointer; }
+.xpp-value-check { margin: 0; flex: none; }
+.xpp-tab-close { margin-left: 6px; opacity: 0.7; }
+.xpp-tab-close:hover { opacity: 1; }
+.xpp-slider { margin: 4px 0 8px; }
+.xpp-slider-name { width: 100%; font: inherit; }
+.xpp-slider-range { width: 100%; margin: 2px 0; }
+.xpp-slider-limits { display: flex; gap: 4px; align-items: center; }
+.xpp-slider-lim {
+  width: 5em;
+  font: 12px var(--vscode-editor-font-family, monospace);
+  color: var(--vscode-input-foreground, inherit);
+  background: var(--vscode-input-background, #fff);
+  border: 1px solid var(--xpp-border);
+  padding: 1px 4px;
+}
+.xpp-slider-limits .xpp-slider-lim:last-child { text-align: right; }
+.xpp-slider-val { flex: 1; text-align: center; font-family: var(--vscode-editor-font-family, monospace); }
+.xpp-data { display: flex; flex-direction: column; }
+.xpp-data-tools { display: flex; flex-wrap: wrap; gap: 3px; padding: 6px; }
+.xpp-data-info { padding: 0 6px 4px; }
+.xpp-data-scroll {
+  /* a fixed height: grown to its content it would list every row */
+  flex: none;
+  height: max(260px, 60vh);
+  overflow: auto;
+  position: relative;
+  background: var(--vscode-editor-background, #fff);
+  font: 12px/20px var(--vscode-editor-font-family, monospace);
+  outline: none;
+}
+.xpp-data-head {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  height: 22px;
+  background: var(--xpp-panel);
+  border-bottom: 1px solid var(--xpp-border);
+  font-weight: 600;
+}
+.xpp-data-space { position: relative; }
+.xpp-data-row { position: absolute; left: 0; right: 0; height: 20px; cursor: default; }
+.xpp-data-row:hover { background: rgba(127, 127, 127, 0.12); }
+.xpp-data-range { background: rgba(47, 111, 179, 0.1); }
+.xpp .xpp-data-sel { background: var(--xpp-accent); color: #fff; }
+.xpp-data-cell {
+  position: absolute;
+  top: 0;
+  width: 100px;
+  padding: 0 6px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-align: right;
+}
+.xpp-data-head .xpp-data-cell { line-height: 22px; }
+.xpp-data-t { width: 110px; z-index: 1; background: inherit; background-color: var(--xpp-panel); }
+.xpp-data-sel .xpp-data-t { background-color: var(--xpp-accent); }
+.xpp-actions { padding: 6px; display: flex; flex-direction: column; gap: 3px; align-items: flex-start; }
+.xpp-action { text-align: left; }
+.xpp-ani { display: flex; flex-direction: column; gap: 4px; padding: 4px 6px 6px; }
+.xpp-ani-slider { width: 100%; }
+.xpp-ani-info { font-family: var(--vscode-editor-font-family, monospace); padding: 0 4px; }
+.xpp-film { display: flex; flex-direction: column; }
+.xpp-film .xpp-canvas { margin: 6px; align-self: flex-start; cursor: pointer; }
+.xpp-aplot { display: flex; flex-direction: column; gap: 4px; padding: 4px 6px 6px; }
+.xpp-aplot-body { display: flex; gap: 8px; align-items: flex-start; }
+.xpp-aplot-scale { display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 5em; }
+.xpp-aplot-bar { border: 1px solid var(--xpp-border); }
+.xpp-aplot .xpp-canvas { cursor: ns-resize; }
+.xpp-files-head { display: flex; gap: 6px; align-items: center; margin-top: 6px; }
+.xpp-files-dir { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; direction: rtl; text-align: left; }
+.xpp-files-wild { width: 7em; font: 12px var(--vscode-editor-font-family, monospace); }
+.xpp-files {
+  max-height: 220px;
+  overflow: auto;
+  margin-top: 4px;
+  border: 1px solid var(--xpp-border);
+  font: 12px/18px var(--vscode-editor-font-family, monospace);
+}
+.xpp-file { padding: 0 6px; cursor: pointer; white-space: nowrap; }
+.xpp-file:hover { background: rgba(127, 127, 127, 0.15); }
+.xpp-dir { font-weight: 600; }
