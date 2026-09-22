@@ -2,6 +2,22 @@
 
 All notable changes to this extension will be documented in this file.
 
+## Unreleased
+
+- New checks for how XPP's parser groups `^`, comparisons and unary minus, all confirmed by running the expressions through `add_expr()`/`evaluate()` in xppautX and the failing files through `xppautX -silent`. They follow from one table: priority 7 is `^`, `**` and every comparison; priority 6 is `*`, `/`, `&` and unary minus; priority 4 is binary `+`, `-` and `|`.
+  - **Error**: a sign where XPP allows none. A sign is only legal at the start of an expression, after `(` or after `,`, so `2*-3`, `x^-2`, `a+-b`, `if(t<-1.3)` and a unary `+` anywhere are rejected and the file does not load (`ERROR compiling X'`). The message gives the bracketing that works, and notes that `(+2)` is not a fix for a `+`.
+  - **Warning**: a comparison standing next to arithmetic. Comparisons bind tighter than every arithmetic operator, so XPP evaluates the comparison first and applies the arithmetic to its 0 or 1: `2*3<4` is `2*(3<4)` = 2 and not 0, `3-1<2` is `3-(1<2)` = 2 and not 0, `1+2<3+4` is `1+(2<3)+4` = 6 and not 1, and `1/2<1` is `1/(2<1)`, a division by zero. A leading sign is the same rule: `-1<0` is `-(1<0)` = -0, i.e. **false**, and `-1>=0` is `-(1>=0)` = -1, i.e. **true**, so an `if` silently takes the wrong branch.
+  - **Information**: `^` groups to the left (`2^3^2` is `(2^3)^2` = 64, not 512) and unary minus binds more weakly than `^` (`-2^2` is `-(2^2)` = -4, not 4). Both are legal and usually intended — `exp(-x^2)` means what it looks like — so they are not warnings.
+  - Tunable through `xpp-ode.precedence.power` and `xpp-ode.precedence.comparison` (`warning`, `information`, `hint` or `off`). The error is always reported, like the other things XPP rejects.
+  - **Warning**: `a<b<c`. Comparisons group to the left, so XPP reads `(a<b)<c` and the second one tests the first one's 0 or 1 against `c`. `3<2<1` is 1, i.e. **true**, although neither half holds. The message suggests the `&` form.
+- `@` option lines are now parsed the way XPP parses them, and their values are checked:
+  - Options are separated by commas **and spaces**, so `@ bound=10000 meth=cvode dt=.05 total=100` sets all four. The extension previously split on commas only and silently saw just the first option on such a line, missing the unknown-name check on the rest.
+  - **Error**: a numeric option whose value is not a plain number. XPP still runs, but as with `@ dt = 0.1` beside it there is no legitimate reason to write it. XPP reads these with `atof()`, which stops at the first character that cannot be part of a number and reports nothing, so `@ total=2*3` is 2 and not 6, `@ total=4abc` is 4 and `@ total=(4)` is 0. `@` values are not expressions. Which options are numeric is taken from the `msc(...)` dispatch in xppautX `core/load_eqn.c`; options that take a name, file or keyword (`meth=cvode`, `xp=x`) are left alone.
+  - The "option is ignored" error now also covers `@ total=` and `@ total= 4`, which XPP drops just as it drops `@ total = 4`: every piece of an `@` line must be exactly `name=value`. All three were confirmed to leave the option at its default.
+- 38 option names XPP accepts but the extension did not know (`s1`, `slo1`, `shi1`, `histlo`, `speccol`, `ncol`, `quiet`, ...) no longer produce a spurious "Unknown option" warning.
+- Hovering over `^`, `**` or a comparison operator explains its priority, with worked examples.
+- The parsed model now exposes the expression on each line, with comments removed and `\` continuations joined, so these checks cannot fire inside a comment or after `done`.
+
 ## Version 0.4.0
 
 - Parentheses checker no longer stops working after the first comment in a file.

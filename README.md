@@ -97,8 +97,9 @@ What you get for `.ode` and `.inc` files:
 
 The extension checks each `.ode`/`.inc` file as you type and reports:
 
-- **Errors**: missing `done`, unbalanced brackets, reserved words used as names, duplicate or conflicting names, `@` options that XPP would silently ignore, and `solv` lines with spaces around `=`.
-- **Warnings**: text after `done` (XPP stops reading there, so the samples keep notes and C source below it; it is shown dimmed), undefined names, unused parameters/fixed variables/functions (shown faded), initial conditions for names that are not state variables, lines XPP does not recognise and silently skips, unknown `@` option names, and fixed variables named like a keyword (`p=1`).
+- **Errors**: missing `done`, unbalanced brackets, reserved words used as names, duplicate or conflicting names, `@` options that XPP would silently ignore, `solv` lines with spaces around `=`, and a [sign where XPP allows none](#operator-precedence) (`2*-3`, `x^-2`), which stops the file loading; an `@` option XPP drops because it is not exactly `name=value`; and a [numeric `@` option whose value is not a plain number](#-option-values) (`@ total=2*3` is 2, not 6). XPP runs in those last two cases, but there is no legitimate reason to write either.
+- **Warnings**: text after `done` (XPP stops reading there, so the samples keep notes and C source below it; it is shown dimmed), undefined names, unused parameters/fixed variables/functions (shown faded), initial conditions for names that are not state variables, lines XPP does not recognise and silently skips, unknown `@` option names, fixed variables named like a keyword (`p=1`), and a [comparison next to arithmetic](#operator-precedence) (`2*3<4` is `2*(3<4)`, `-1<0` is `-(1<0)`, `a<b<c` is `(a<b)<c`), which silently changes the result or the branch an `if` takes.
+- **Information**: the two [`^` precedence surprises](#operator-precedence) — `2^3^2` is `(2^3)^2`, and `-2^2` is `-(2^2)`. Legal, and often intended, so they are not warnings.
 
 Names defined in `#include`d files count as defined. Inside an `.inc` file the undefined-name check is off, because the including `.ode` file may define them.
 
@@ -140,6 +141,146 @@ All of these were verified by running files through `xppaut` 8.0.
 **Comments and `#`.** `#` starts a comment except inside braces, where it is the Volterra convolution operator: `y(t)=int{exp(-t)#x}`.
 
 </details>
+
+## Operator precedence
+
+XPP's expression parser groups things differently from standard mathematical notation, and refuses
+some expressions outright. None of this is a bug: it is long-standing XPPAUT behaviour that
+existing models rely on, and neither the extension nor
+[xppautX](https://github.com/MuhammadMoustafa/xppautX) changes it. The extension only makes it
+visible.
+
+Everything below was confirmed by compiling the expression with `add_expr()` and running it
+through `evaluate()` in xppautX, and the "will not load" cases by running the file through
+`xppautX -silent`.
+
+**It all follows from one table.**
+
+| priority | operators |
+|---|---|
+| 7 | `^`, `**`, and every comparison: `<` `>` `<=` `>=` `==` `!=` |
+| 6 | `*`, `/`, `&`, and unary minus (a separate operator, `~`) |
+| 4 | binary `+`, `-`, `\|` |
+
+So comparisons bind tighter than **all** arithmetic, which is the opposite of nearly every other
+language, and unary minus binds more weakly than both `^` and the comparisons.
+
+| you write | XPP reads it as | value | reported as |
+|---|---|---|---|
+| `2^3^2` | `(2^3)^2` | **64** (standard notation means 512) | information |
+| `-2^2` | `-(2^2)` | **-4** (not 4) | information |
+| `2*3<4` | `2*(3<4)` | **2** (not 0) | warning |
+| `1+2<3+4` | `1+(2<3)+4` | **6** (not 1) | warning |
+| `-1<0` | `-(1<0)` | **-0, i.e. false** (not true) | warning |
+| `a<b<c` | `(a<b)<c` | **`3<2<1` is true** | warning |
+| `2*-3` | — | **the file does not load** | error |
+
+### 1. `^` groups to the left
+
+`2^3^2^2` is `((2^3)^2)^2` = 4096. `**` is the same operator, so `2**3**2` is 64 too.
+
+```
+x'=-a*x^2^3        # XPP: (x^2)^3, i.e. x^6
+x'=-a*(x^2)^3      # the same thing, written so it cannot be misread
+x'=-a*x^(2^3)      # what standard notation would have meant: x^8
+```
+
+### 2. Unary minus binds more weakly than `^`
+
+This is usually what you wanted anyway, which is why it is only an information message:
+
+```
+aux e=-x^2         # -(x^2): negative for every x  -- and normally what you meant
+aux e=(-x)^2       # x^2: positive for every x
+```
+
+It applies to scientific notation as well: `-3E-5^2` is `-(3E-5^2)` = -9e-10. Note that the minus
+inside `1e-3` belongs to the number, not to an operator, so `1e-3^2` is `(1e-3)^2` = 1e-6.
+
+### 3. Comparisons bind tighter than arithmetic
+
+This is the one that quietly ruins results, so it is a warning. XPP evaluates the comparison first
+and then does the arithmetic on its `0` or `1`:
+
+```
+2*3<4              # XPP: 2*(3<4) = 2      -- not (2*3)<4 = 0
+3-1<2              # XPP: 3-(1<2) = 2      -- not (3-1)<2 = 0
+1+2<3+4            # XPP: 1+(2<3)+4 = 6    -- not (1+2)<(3+4) = 1
+1/2<1              # XPP: 1/(2<1) -- a division by zero
+(2*3)<4            # bracket what you want compared
+```
+
+A leading sign is the same rule, and it flips `if` branches silently:
+
+```
+f(t)=if(-t<0)then(a)else(b)     # XPP: if(-(t<0)) -- always -0, i.e. always the else branch
+f(t)=if((-t)<0)then(a)else(b)   # what you meant
+```
+
+`-1<0` is `-(1<0)` = -0, which is **false** even though -1 really is less than 0; and `-1>=0` is
+`-(1>=0)` = -1, which is **true** (any non-zero value is). Operators weaker than a comparison need
+no brackets: `1<2&3<4` is `(1<2)&(3<4)`, and `2^2<3` is `(2^2)<3`, both as expected.
+
+### 4. A sign is only allowed at the start, after `(` or after `,`
+
+Anywhere else XPP rejects the expression and the file does not load at all (`ERROR compiling X'`),
+so the extension reports it as an error:
+
+```
+x'=2*-3            # rejected -- write 2*(-3)
+x'=x^-2            # rejected -- write x^(-2)
+x'=a+-b            # rejected -- write a+(-b)
+f(t)=if(t<-1.3)... # rejected -- write if(t<(-1.3))
+x'=+2*a            # rejected -- XPP has no unary "+" at all, not even as "(+2)"
+x'=-3E-5*a         # fine: the sign starts the expression
+par a=-3E-5        # fine: a declaration value is a plain number, not an expression
+```
+
+### 5. `a<b<c` does not mean what it says
+
+Comparisons group to the left, so `a<b<c` is `(a<b)<c` — the second comparison tests the first
+one's `0` or `1` against `c`:
+
+```
+0<x<1              # XPP: (0<x)<1 -- true only when x is NOT above 0
+(0<x)&(x<1)        # what you meant
+```
+
+`3<2<1` is `(3<2)<1` = `0<1` = **1, true**, although neither half holds.
+
+## `@` option values
+
+An `@` line is not made of expressions. XPP splits it on commas **and spaces** — `@ dt=.05
+meth=cvode total=100` sets all three — and every piece must be exactly `name=value`. Numeric
+values are read with `atof()`, which stops at the first character that cannot be part of a number
+and never reports an error:
+
+| you write | XPP uses | |
+|---|---|---|
+| `@ total=2*3` | `2` | not 6 — `@` values are not expressions |
+| `@ total=4abc` | `4` | |
+| `@ total=(4)` | `0` | `atof` finds no number to start with |
+| `@ total=` | *default* | the option is dropped entirely |
+| `@ total= 4` | *default* | the value was split off, so the piece is not `name=value` |
+| `@ total = 4` | *default* | reads as the three unrelated words `total`, `=`, `4` |
+| `@ t0=-5` | `-5` | negative values are fine |
+| `@ total=1e1` | `10` | as is scientific notation |
+
+Work the value out yourself, or put it in a `par` and use that in your equations. Options that
+take a name, a file or a keyword (`meth=cvode`, `xp=x`, `output=out.dat`) are left alone.
+
+### Settings
+
+The error is always reported, like the other things XPP rejects. The advisory findings have one
+setting each, because they do not deserve the same volume:
+
+```jsonc
+// .vscode/settings.json -- "warning", "information", "hint" or "off"
+"xpp-ode.precedence.power": "information",   // 2^3^2 and -2^2
+"xpp-ode.precedence.comparison": "warning"   // 2*3<4, 1+2<3+4, -1<0, a<b<c
+```
+
+Hovering over `^`, `**` or any comparison shows the same summary.
 
 ## Custom colours for variables and parameters
 

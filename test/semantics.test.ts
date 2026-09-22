@@ -143,3 +143,62 @@ suite('XPP model and semantic checks', () => {
         });
     });
 });
+
+suite('numeric "@" option values', () => {
+    // XPP reads these with atof(), which stops at the first character that cannot be part of a
+    // number and reports nothing. Values below were confirmed by running the file through
+    // "xppautX -silent" and reading the resulting output.dat.
+    const values = (text: string) => run(text).filter(r => r.type === 'option-value').map(r => r.message);
+
+    test('flags a value that is not a plain number', () => {
+        assert.strictEqual(values('@ total=2*3').length, 1);   // XPP: total is 2, not 6
+        assert.strictEqual(values('@ total=2+3').length, 1);   // XPP: 2
+        assert.strictEqual(values('@ total=4abc').length, 1);  // XPP: 4
+        assert.strictEqual(values('@ total=(4)').length, 1);   // XPP: 0
+        assert.strictEqual(values('@ dt=a').length, 1);        // XPP: 0
+    });
+
+    test('is an error: XPP runs, but nobody writes this on purpose', () => {
+        assert.deepStrictEqual(run('@ total=2*3').map(r => r.severity), ['error']);
+    });
+
+    test('says which value XPP will actually use', () => {
+        assert.ok(values('@ total=2*3')[0].includes('silently set to 2'), values('@ total=2*3')[0]);
+        assert.ok(values('@ total=(4)')[0].includes('silently set to 0'), values('@ total=(4)')[0]);
+    });
+
+    test('accepts every plain number XPP accepts', () => {
+        // All confirmed to work: t0=-5 starts the run at -5, total=.5 and 1e1 behave as written.
+        assert.deepStrictEqual(values('@ t0=-5'), []);
+        assert.deepStrictEqual(values('@ t0=-3E-5'), []);
+        assert.deepStrictEqual(values('@ total=1e1'), []);
+        assert.deepStrictEqual(values('@ total=.5'), []);
+        assert.deepStrictEqual(values('@ dt=+0.5'), []);
+        assert.deepStrictEqual(values('@ total=4,dt=0.5,t0=-1'), []);
+    });
+
+    test('leaves options that take a name, file or keyword alone', () => {
+        assert.deepStrictEqual(values('@ meth=cvode'), []);
+        assert.deepStrictEqual(values('@ xp=x,yp=y'), []);
+        assert.deepStrictEqual(values('@ output=out.dat'), []);
+        assert.deepStrictEqual(values('@ bigfont=lucidasans-24'), []);
+    });
+
+    test('does not double-report a value on a line XPP already ignores', () => {
+        // These all leave total at its default of 20, confirmed by running them; the option being
+        // dropped is the error worth showing, not the value it never got.
+        assert.deepStrictEqual(run('@ total = 2*3').map(r => r.type), ['option']);
+        assert.deepStrictEqual(run('@ total= 4').map(r => r.type), ['option']);
+        assert.deepStrictEqual(run('@ total=').map(r => r.type), ['option']);
+    });
+
+    test('options may be separated by spaces as well as commas', () => {
+        // "@ bound=10000 meth=cvode dt=.05 total=100" sets all four, verified by running it.
+        assert.deepStrictEqual(run('@ dt=.05 meth=cvode total=100'), []);
+        assert.deepStrictEqual(run('@ xhi=1 t0=.01,dt=.01,total=.99'), []);
+        assert.deepStrictEqual(run('@ parmin=-.2 parmax=.5'), []);
+        // and every one of them is still checked
+        assert.deepStrictEqual(run('@ dt=.05 nosuchopt=1').map(r => r.type), ['option']);
+        assert.deepStrictEqual(run('@ dt=.05 total=2*3').map(r => r.type), ['option-value']);
+    });
+});

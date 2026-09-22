@@ -1,4 +1,5 @@
 import { XppModel, Declaration, isKeywordLikeName } from './xppModel';
+import { numericOptionNames } from './constants';
 
 export interface SemanticResult {
     message: string;
@@ -6,7 +7,7 @@ export interface SemanticResult {
     start: number;
     end: number;
     severity: 'error' | 'warning' | 'information';
-    type: 'undefined' | 'unused' | 'init-target' | 'ignored-line' | 'keyword-name' | 'option' | 'syntax';
+    type: 'undefined' | 'unused' | 'init-target' | 'ignored-line' | 'keyword-name' | 'option' | 'option-value' | 'syntax';
     /** Render the range faded (VS Code "unnecessary" tag). */
     unnecessary?: boolean;
 }
@@ -74,13 +75,27 @@ export function checkSemantics(
     for (const opt of model.options) {
         if (opt.badSpacing) {
             results.push({
-                message: `Option "${opt.name}" is ignored by XPP: no spaces are allowed around "=" on "@" lines`,
+                message: `Option "${opt.name}" is ignored by XPP and its default is used. On an "@" line each option ` +
+                    `must be exactly "name=value" with no spaces around the "=" and a value present; ` +
+                    `spaces and commas both separate one option from the next, so "@ dt = 0.1" is read as ` +
+                    `the three unrelated words "dt", "=" and "0.1" and dropped.`,
                 line: opt.line, start: opt.start, end: opt.end, severity: 'error', type: 'option',
             });
         } else if (!opt.known) {
             results.push({
                 message: `Unknown option "${opt.name}"`,
                 line: opt.line, start: opt.start, end: opt.end, severity: 'warning', type: 'option',
+            });
+        } else if (NUMERIC_OPTIONS.has(opt.nameLower) && !PLAIN_NUMBER.test(opt.value)) {
+            results.push({
+                message: optionValueMessage(opt.name, opt.value),
+                line: opt.line,
+                start: opt.value === '' ? opt.start : opt.valueStart,
+                end: opt.value === '' ? opt.end : opt.valueEnd,
+                // An error, like the spacing case beside it: XPP runs, but there is no legitimate
+                // reason to write a numeric option this way, so it is always a mistake.
+                severity: 'error',
+                type: 'option-value',
             });
         }
     }
@@ -135,6 +150,27 @@ export function checkSemantics(
     }
 
     return results;
+}
+
+const NUMERIC_OPTIONS = new Set(numericOptionNames);
+
+/** Exactly what `atof()` consumes: an optional sign, digits with an optional ".", an exponent. */
+const PLAIN_NUMBER = /^[+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?$/;
+
+/**
+ * XPP reads a numeric "@" option with `atof()`, which stops at the first character that cannot be
+ * part of a number and never reports an error. So the option is set, silently, to whatever prefix
+ * happened to parse: "@ total=2*3" is 2, not 6.
+ */
+function optionValueMessage(name: string, value: string): string {
+    const prefix = /^[+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?/.exec(value);
+    const used = prefix ? prefix[0] : '0';
+    const hint = prefix
+        ? `XPP reads the value with "atof", which stops at "${value.substring(used.length)}"`
+        : `XPP reads the value with "atof", which finds no number in "${value}"`;
+    return `Option "${name}" is silently set to ${used}, not "${value}". ${hint}, and reports nothing. ` +
+        `"@" options take a plain number: they are not expressions, so "@ total=2*3" is 2, not 6. ` +
+        `Work the value out yourself, or put it in a "par" and use that in your equations.`;
 }
 
 function capitalize(word: string): string {

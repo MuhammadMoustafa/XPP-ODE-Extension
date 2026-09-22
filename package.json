@@ -130,6 +130,40 @@
 					"default": "",
 					"markdownDescription": "Windows only. Command line of an X server to start automatically before running xppaut when it is not already running, e.g. `\"C:\\\\Program Files (x86)\\\\Xming\\\\Xming.exe\" :0 -multiwindow -clipboard`. Leave empty to start the server yourself."
 				},
+				"xpp-ode.precedence.power": {
+					"type": "string",
+					"enum": [
+						"warning",
+						"information",
+						"hint",
+						"off"
+					],
+					"enumDescriptions": [
+						"Show as a warning",
+						"Show as an information message",
+						"Show only as a faint hint (not listed in the Problems panel)",
+						"Do not report this at all"
+					],
+					"default": "information",
+					"markdownDescription": "How to report the two `^` surprises: `^` groups to the left, so `2^3^2` is `(2^3)^2` = 64 and not `2^(3^2)` = 512; and unary minus binds more weakly than `^`, so `-2^2` is `-(2^2)` = -4 and not `(-2)^2` = 4. Nothing is wrong in either case — this is long-standing XPPAUT behaviour, and `exp(-x^2)` means exactly what it looks like — so these are reported as information, not warnings."
+				},
+				"xpp-ode.precedence.comparison": {
+					"type": "string",
+					"enum": [
+						"warning",
+						"information",
+						"hint",
+						"off"
+					],
+					"enumDescriptions": [
+						"Show as a warning",
+						"Show as an information message",
+						"Show only as a faint hint (not listed in the Problems panel)",
+						"Do not report this at all"
+					],
+					"default": "warning",
+					"markdownDescription": "How to report a comparison standing next to arithmetic. Comparisons have priority 7 and every arithmetic operator 4 or 6, so XPP evaluates the comparison first and applies the arithmetic to its 0 or 1 result: `2*3<4` is `2*(3<4)` = 2 and not 0, `3-1<2` is `3-(1<2)` = 2 and not 0, `1+2<3+4` is `1+(2<3)+4` = 6 and not 1, and `1/2<1` is `1/(2<1)`, a division by zero. A leading sign is the same rule: `-1<0` is `-(1<0)` = -0, which is **false**, and `-1>=0` is `-(1>=0)` = -1, which is **true**. All of these silently flip the branch an `if` takes, so they are reported as warnings. Bracket what you want compared: `(2*3)<4`."
+				},
 				"xpp-ode.debounceDelay": {
 					"type": "number",
 					"default": 300,

@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import { XppRenameProvider } from './providers/renameProvider';
 import { XppDocumentHighlightProvider } from './providers/highlightProvider';
 import { DiagnosticManager } from './diagnostics/diagnosticManager';
+import { OPERATOR_SETTINGS } from './diagnostics/operatorChecker';
 import { isXppDocument, isOdeOrIncPath, XPP_LANGUAGE_ID } from './utils/constants';
 import { toggleComment } from './utils/commenting';
 import { handleNewFile } from './utils/fileHandler';
@@ -11,6 +12,7 @@ import { ExtractVariableProvider } from './providers/extractVariableProvider';
 import { IdentifierColorProvider } from './providers/identifierColorProvider';
 import { XppColorPickerProvider } from './providers/colorPickerProvider';
 import { ColorsFileCompletionProvider } from './providers/colorsFileCompletionProvider';
+import { OperatorHoverProvider } from './providers/operatorHoverProvider';
 
 const XPP_SELECTOR: vscode.DocumentSelector = { scheme: 'file', language: XPP_LANGUAGE_ID };
 
@@ -48,6 +50,14 @@ export function activate(context: vscode.ExtensionContext) {
         }),
         vscode.languages.registerRenameProvider(XPP_SELECTOR, new XppRenameProvider()),
         vscode.languages.registerDocumentHighlightProvider(XPP_SELECTOR, new XppDocumentHighlightProvider()),
+        vscode.languages.registerHoverProvider(XPP_SELECTOR, new OperatorHoverProvider()),
+        vscode.workspace.onDidChangeConfiguration((event) => {
+            if (OPERATOR_SETTINGS.some((setting) => event.affectsConfiguration(setting))) {
+                vscode.workspace.textDocuments.filter(isXppDocument).forEach((document) => {
+                    diagnosticManager.checkFile(document);
+                });
+            }
+        }),
         vscode.workspace.onDidCreateFiles((event) => {
             event.files
                 .filter((file) => isOdeOrIncPath(file.fsPath))

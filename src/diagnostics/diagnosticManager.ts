@@ -3,6 +3,7 @@ import { ParenthesesChecker } from './parenthesesChecker';
 import { VariableChecker } from './variableChecker';
 import { checkEndDirective } from '../utils/endDirectiveCore';
 import { SemanticChecker } from './semanticChecker';
+import { OperatorChecker } from './operatorChecker';
 
 const DEFAULT_DEBOUNCE_MS = 300;
 
@@ -11,6 +12,7 @@ export class DiagnosticManager implements vscode.Disposable {
     private parenthesesChecker: ParenthesesChecker;
     private variableChecker: VariableChecker;
     private semanticChecker: SemanticChecker;
+    private operatorChecker: OperatorChecker;
     private pendingChecks = new Map<string, NodeJS.Timeout>();
 
     constructor() {
@@ -18,6 +20,7 @@ export class DiagnosticManager implements vscode.Disposable {
         this.parenthesesChecker = new ParenthesesChecker();
         this.variableChecker = new VariableChecker();
         this.semanticChecker = new SemanticChecker();
+        this.operatorChecker = new OperatorChecker();
     }
 
     /**
@@ -68,7 +71,8 @@ export class DiagnosticManager implements vscode.Disposable {
             ...this.checkEndDirectives(document),
             ...this.parenthesesChecker.check(document),
             ...this.variableChecker.check(document),
-            ...this.semanticChecker.check(document)
+            ...this.semanticChecker.check(document),
+            ...this.operatorChecker.check(document)
         ];
 
         this.diagnosticCollection.set(document.uri, diagnostics);

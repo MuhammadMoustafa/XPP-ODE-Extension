@@ -52,18 +52,39 @@ export const builtinConstants = ['t', 'pi'];
  * AUTOXMIN, AUTOXMAX, AUTOYMIN, AUTOYMAX, AUTOVAR), plus the spellings used by the bundled examples.
  */
 export const optionNames = [
-    'atol', 'atoler', 'autoeval', 'autovar', 'autoxmax', 'autoxmin', 'autoymax', 'autoymin', 'axes',
-    'back', 'backcolor', 'bandlo', 'bandup', 'bell', 'big', 'bigfont', 'bound', 'bounds', 'but',
-    'colormap', 'delay', 'dfdraw', 'dfgrid', 'dll_fun', 'dll_lib', 'ds', 'dsmax', 'dsmin', 'dt', 'dtmax', 'dtmin',
-    'dwcolor', 'epsl', 'epss', 'epsu', 'fold', 'forecolor', 'grads', 'height', 'jac_eps', 'lt',
-    'maxstor', 'meth', 'method', 'mwcolor', 'ncdraw', 'newt_iter', 'newt_tol', 'njmp', 'nmax', 'nmesh', 'normmax', 'normmin',
-    'nout', 'nplot', 'npr', 'nstab', 'ntst', 'output', 'parmax', 'parmin', 'phi', 'poimap', 'poipln', 'poisgn', 'poistop', 'poivar',
-    'ps_color', 'ps_font', 'ps_fsize', 'ps_lw', 'range', 'rangehigh', 'rangelow', 'rangeoldic', 'rangeover',
-    'rangereset', 'rangestep', 'rangesteps', 'runnow', 'seed', 'small', 'smallfont', 'smc', 'stoch',
-    't0', 'theta', 'tol', 'toler', 'tor_per', 'total', 'trans', 'transient', 'umc', 'vmaxpts', 'width',
-    'xhi', 'xlo', 'xmax', 'xmin', 'xnc', 'xp', 'xp2', 'xp3', 'xp4', 'xp5', 'xp6', 'xp7', 'xp8', 'xplot',
-    'yhi', 'ylo', 'ymax', 'ymin', 'ync', 'yp', 'yp2', 'yp3', 'yp4', 'yp5', 'yp6', 'yp7', 'yp8', 'yplot',
-    'zmax', 'zmin', 'zp', 'zp2', 'zp3', 'zp4', 'zp5', 'zp6', 'zp7', 'zp8', 'zplot',
+    'atol', 'atoler', 'autoeval', 'autovar', 'autoxmax', 'autoxmin', 'autoymax', 'autoymin', 'axes', 'back', 'backcolor',
+    'backimage', 'bandlo', 'bandup', 'bell', 'big', 'bigfont', 'bound', 'bounds', 'but', 'colorhi', 'colorize', 'colorlo',
+    'colormap', 'colorvia', 'delay', 'dfdraw', 'dfgrid', 'dll_fun', 'dll_lib', 'ds', 'dsmax', 'dsmin', 'dt', 'dtmax',
+    'dtmin', 'dwcolor', 'epsl', 'epss', 'epsu', 'fold', 'forecolor', 'grads', 'height', 'histbins', 'histbins2', 'histcol',
+    'histcol2', 'histhi', 'histhi2', 'histlo', 'histlo2', 'jac_eps', 'logfile', 'lt', 'maxstor', 'meth', 'method', 'multiwin',
+    'mwcolor', 'ncdraw', 'ncol', 'newt_iter', 'newt_tol', 'njmp', 'nmax', 'nmesh', 'normmax', 'normmin', 'nout', 'nplot',
+    'npr', 'nstab', 'ntst', 'output', 'parmax', 'parmin', 'phi', 'plotfmt', 'poimap', 'poipln', 'poisgn', 'poistop', 'poivar',
+    'postprocess', 'ps_color', 'ps_font', 'ps_fsize', 'ps_lw', 'quiet', 'range', 'rangehigh', 'rangelow', 'rangeoldic',
+    'rangeover', 'rangereset', 'rangestep', 'rangesteps', 'runnow', 's1', 's2', 's3', 'sec', 'seed', 'shi1', 'shi2', 'shi3',
+    'simplot', 'slo1', 'slo2', 'slo3', 'small', 'smallfont', 'smc', 'spc', 'speccol', 'speccol2', 'specwidth', 'specwin',
+    'stoch', 't0', 'theta', 'tol', 'toler', 'tor_per', 'total', 'trans', 'transient', 'tutorial', 'uec', 'umc', 'upc',
+    'vmaxpts', 'width', 'xhi', 'xlo', 'xmax', 'xmin', 'xnc', 'xp', 'xp2', 'xp3', 'xp4', 'xp5', 'xp6', 'xp7', 'xp8', 'xplot',
+    'yhi', 'ylo', 'ymax', 'ymin', 'ync', 'yp', 'yp2', 'yp3', 'yp4', 'yp5', 'yp6', 'yp7', 'yp8', 'yplot', 'zmax', 'zmin', 'zp',
+    'zp2', 'zp3', 'zp4', 'zp5', 'zp6', 'zp7', 'zp8', 'zplot',
+];
+
+/**
+ * Options whose value XPP reads with `atof()` (derived from the `msc("NAME", ...)` dispatch in
+ * xppautX core/load_eqn.c). `atof` stops at the first character that cannot be part of a number
+ * and never reports an error, so anything but a plain number is silently truncated:
+ * "@ total=2*3" gives 2, "@ total=4abc" gives 4 and "@ total=(4)" gives 0.
+ *
+ * Options not listed here take a name, a file name or a keyword ("meth=cvode", "xp=x",
+ * "output=out.dat") and are left alone.
+ */
+export const numericOptionNames = [
+    'atol', 'autoeval', 'autoxmax', 'autoxmin', 'autoymax', 'autoymin', 'bandlo', 'bandup', 'bell', 'bound', 'colormap',
+    'delay', 'dfdraw', 'dfgrid', 'ds', 'dsmax', 'dsmin', 'dt', 'dtmax', 'dtmin', 'epsl', 'epss', 'epsu', 'grads',
+    'height', 'jac_eps', 'lt', 'maxstor', 'ncdraw', 'newt_iter', 'newt_tol', 'njmp', 'nmax', 'nmesh', 'normmax',
+    'normmin', 'nout', 'nplot', 'npr', 'ntst', 'parmax', 'parmin', 'phi', 'poipln', 'poisgn', 'poistop', 'ps_color',
+    'ps_fsize', 'ps_lw', 'range', 'rangehigh', 'rangelow', 'rangestep', 'runnow', 'seed', 'smc', 'stoch', 't0',
+    'theta', 'tol', 'tor_per', 'total', 'trans', 'umc', 'vmaxpts', 'width', 'xhi', 'xlo', 'xmax', 'xmin', 'xnc', 'yhi',
+    'ylo', 'ymax', 'ymin', 'ync', 'zmax', 'zmin',
 ];
 
 /**

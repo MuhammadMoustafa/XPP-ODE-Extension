@@ -52,12 +52,26 @@ export interface Reference extends TextSpan {
     role: 'expression' | 'init';
 }
 
+/**
+ * A stretch of a line that XPP parses as an expression, with comments removed and
+ * "\\" continuations joined. `positions[i]` is the physical (line, column) of `text[i]`,
+ * so a finding inside the text can be mapped back to the document exactly.
+ */
+export interface ExpressionSegment {
+    text: string;
+    positions: { line: number; col: number }[];
+}
+
 export interface OptionEntry extends TextSpan {
     name: string;
     nameLower: string;
     /** True when there is whitespace around "=", which makes XPP ignore the option. */
     badSpacing: boolean;
     known: boolean;
+    /** The text after "=", trimmed, and where it sits on the line. */
+    value: string;
+    valueStart: number;
+    valueEnd: number;
 }
 
 export interface LineInfo {
@@ -75,6 +89,8 @@ export interface XppModel {
     declarations: Declaration[];
     references: Reference[];
     options: OptionEntry[];
+    /** Expression right-hand sides, for checks that need the text rather than the names in it. */
+    expressions: ExpressionSegment[];
     /** Files named on "#include" lines. */
     includes: { path: string; line: number }[];
 }
@@ -170,6 +186,7 @@ export function parseXpp(text: string): XppModel {
     const declarations: Declaration[] = [];
     const references: Reference[] = [];
     const options: OptionEntry[] = [];
+    const expressions: ExpressionSegment[] = [];
     const includes: { path: string; line: number }[] = [];
     let arrayBlockRange: [number, number] | undefined;
 
@@ -205,7 +222,15 @@ export function parseXpp(text: string): XppModel {
             const e = at(Math.max(start, end - 1));
             return { line: s.line, start: s.col, end: e.col + 1 };
         };
+        const addExpression = (segmentStart: number, segmentEnd: number) => {
+            if (segmentEnd <= segmentStart) return;
+            expressions.push({
+                text: text.substring(segmentStart, segmentEnd),
+                positions: logicalLine.map.slice(segmentStart, segmentEnd),
+            });
+        };
         const addRefs = (segmentStart: number, segmentEnd: number, role: Reference['role'] = 'expression') => {
+            addExpression(segmentStart, segmentEnd);
             scanReferences(text.substring(segmentStart, segmentEnd)).forEach(ref => {
                 references.push({ ...ref, ...span(segmentStart + ref.start, segmentStart + ref.end), role });
             });
@@ -235,7 +260,13 @@ export function parseXpp(text: string): XppModel {
         if (body.startsWith('@')) {
             info.kind = 'option';
             parseOptions(body.substring(1), indent + 1).forEach(opt => {
-                options.push({ ...opt, ...span(opt.start, opt.end) });
+                const value = span(opt.valueStart, opt.valueEnd);
+                options.push({
+                    ...opt,
+                    ...span(opt.start, opt.end),
+                    valueStart: value.start,
+                    valueEnd: opt.value === '' ? value.start : value.end,
+                });
             });
             continue;
         }
@@ -415,6 +446,7 @@ export function parseXpp(text: string): XppModel {
             const params = func[2].split(',').map(p => p.trim()).filter(Boolean);
             declare('function', func[1], span(indent, indent + func[1].length), { parameters: params });
             const paramSet = new Set(params.map(p => p.toLowerCase()));
+            addExpression(indent + func[0].length, text.length);
             scanReferences(text.substring(indent + func[0].length)).forEach(ref => {
                 if (paramSet.has(ref.nameLower)) return;
                 const s = indent + func[0].length;
@@ -434,7 +466,7 @@ export function parseXpp(text: string): XppModel {
         info.kind = 'ignored';
     }
 
-    return { lines: rawLines, lineInfos, declarations, references, options, includes };
+    return { lines: rawLines, lineInfos, declarations, references, options, expressions, includes };
 }
 
 /**
@@ -468,25 +500,61 @@ function forEachAssignment(
     }
 }
 
+/**
+ * Splits an "@" line the way XPP does. Commas and spaces both separate options — "@ dt=.05
+ * meth=cvode total=100" sets all three, verified by running such a file — and each piece must be
+ * exactly "name=value". A piece that is not (because spaces were left around the "=", which
+ * splits it into "name", "=" and "value") is dropped by XPP without a word, which is why
+ * "@ dt = 0.1" silently leaves dt at its default.
+ */
 function parseOptions(text: string, offset: number): (Omit<OptionEntry, 'line'> & { start: number; end: number })[] {
     const entries: (Omit<OptionEntry, 'line'> & { start: number; end: number })[] = [];
-    let chunkOffset = 0;
-    for (const chunk of text.split(',')) {
-        const m = new RegExp(`^(\\s*)(${IDENT})(\\s*)=(\\s*)`).exec(chunk);
-        if (m) {
-            const start = offset + chunkOffset + m[1].length;
-            const nameLower = m[2].toLowerCase();
+    const pieces: { text: string; start: number }[] = [];
+    const pieceRegex = /[^,\s]+/g;
+    let m: RegExpExecArray | null;
+    while ((m = pieceRegex.exec(text)) !== null) {
+        pieces.push({ text: m[0], start: offset + m.index });
+    }
+
+    pieces.forEach((piece, index) => {
+        const assignment = new RegExp(`^(${IDENT})=(.*)$`).exec(piece.text);
+        if (assignment) {
+            const nameLower = assignment[1].toLowerCase();
+            // "dt= 0.1": the "=" is there but the value was split off, so XPP still drops it.
+            const badSpacing = assignment[2] === '';
+            const valueStart = piece.start + assignment[1].length + 1;
             entries.push({
-                name: m[2],
+                name: assignment[1],
                 nameLower,
-                start,
-                end: start + m[2].length,
-                badSpacing: m[3].length > 0 || m[4].length > 0,
+                start: piece.start,
+                end: piece.start + assignment[1].length,
+                badSpacing,
                 known: KNOWN_OPTIONS.has(nameLower),
+                value: assignment[2],
+                valueStart,
+                valueEnd: valueStart + assignment[2].length,
+            });
+            return;
+        }
+        // "dt = 0.1" arrives as "dt", "=", "0.1"; report it once, on the name.
+        const bareName = new RegExp(`^(${IDENT})$`).exec(piece.text);
+        const next = pieces[index + 1];
+        if (bareName && next && next.text.startsWith('=')) {
+            const nameLower = bareName[1].toLowerCase();
+            const value = next.text.substring(1);
+            entries.push({
+                name: bareName[1],
+                nameLower,
+                start: piece.start,
+                end: piece.start + bareName[1].length,
+                badSpacing: true,
+                known: KNOWN_OPTIONS.has(nameLower),
+                value,
+                valueStart: next.start + 1,
+                valueEnd: next.start + 1 + value.length,
             });
         }
-        chunkOffset += chunk.length + 1;
-    }
+    });
     return entries;
 }
 
