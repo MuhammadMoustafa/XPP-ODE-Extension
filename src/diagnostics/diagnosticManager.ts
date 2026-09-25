@@ -4,6 +4,7 @@ import { VariableChecker } from './variableChecker';
 import { checkEndDirective } from '../utils/endDirectiveCore';
 import { SemanticChecker } from './semanticChecker';
 import { OperatorChecker } from './operatorChecker';
+import { DescriptionChecker } from './descriptionChecker';
 
 const DEFAULT_DEBOUNCE_MS = 300;
 
@@ -13,6 +14,7 @@ export class DiagnosticManager implements vscode.Disposable {
     private variableChecker: VariableChecker;
     private semanticChecker: SemanticChecker;
     private operatorChecker: OperatorChecker;
+    private descriptionChecker: DescriptionChecker;
     private pendingChecks = new Map<string, NodeJS.Timeout>();
 
     constructor() {
@@ -21,6 +23,7 @@ export class DiagnosticManager implements vscode.Disposable {
         this.variableChecker = new VariableChecker();
         this.semanticChecker = new SemanticChecker();
         this.operatorChecker = new OperatorChecker();
+        this.descriptionChecker = new DescriptionChecker();
     }
 
     /**
@@ -72,7 +75,8 @@ export class DiagnosticManager implements vscode.Disposable {
             ...this.parenthesesChecker.check(document),
             ...this.variableChecker.check(document),
             ...this.semanticChecker.check(document),
-            ...this.operatorChecker.check(document)
+            ...this.operatorChecker.check(document),
+            ...this.descriptionChecker.check(document)
         ];
 
         this.diagnosticCollection.set(document.uri, diagnostics);

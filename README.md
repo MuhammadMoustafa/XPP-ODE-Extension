@@ -8,9 +8,10 @@ Logo designed by: [Manar Moustafa](mailto:manarmoustafa246@gmail.com).
 What you get for `.ode` and `.inc` files:
 
 - Syntax highlighting, bracket matching, and commenting with `Ctrl+/`.
-- [Diagnostics](#diagnostics): missing `done`, unbalanced brackets, reserved or duplicate names, undefined and unused names, options XPP would silently ignore.
+- [Diagnostics](#diagnostics): missing `done`, unbalanced brackets, reserved or duplicate names, undefined and unused names, options XPP would silently ignore or misread, and [operator-precedence traps](#operator-precedence) such as `2*-3` or `2*3<4`.
 - Rename (`F2`) and highlight-all-occurrences for variables, parameters and functions, across `#include`d files; "Extract to Variable" from the context menu.
 - [Custom colours](#custom-colours-for-variables-and-parameters) per variable, parameter or category, shared by every model in a folder.
+- [Descriptions on hover](#descriptions-on-hover): document a name in a `#` comment, like a docstring, and hovering it shows the text.
 - A ["Run ODE File" button](#how-to-customize-the-run-command) that starts xppaut on the current file, with the setup notes for Linux, macOS and Windows.
 
 ---
@@ -21,6 +22,18 @@ What you get for `.ode` and `.inc` files:
 - **Leqi (Sammy) Wang** for suggesting [custom colours for variables and parameters](#custom-colours-for-variables-and-parameters)
 
 ---
+
+## Version 0.4.1
+
+- New checks for XPP's [operator precedence](#operator-precedence), confirmed against xppautX:
+  - **Error**: a sign where XPP allows none (`2*-3`, `x^-2`, `a+-b`, `if(t<-1.3)`, any unary `+`); the file would not load.
+  - **Warning**: a comparison next to arithmetic (`2*3<4` is `2*(3<4)`, `-1<0` is `-(1<0)`, i.e. false) and chained comparisons (`a<b<c` is `(a<b)<c`).
+  - **Information**: `2^3^2` is `(2^3)^2`, and `-2^2` is `-(2^2)`.
+  - Hover over `^`, `**` or a comparison for the rule; `xpp-ode.precedence.power` and `xpp-ode.precedence.comparison` set how loud each is.
+- [`@` option lines](#-option-values) are split on commas and spaces, as XPP does. **Error** for a numeric value that is not a plain number (`@ total=2*3` is 2) and for `@ total=` / `@ total= 4`, which XPP drops.
+- 38 more `@` option names recognised (`s1`, `histlo`, `ncol`, `quiet`, ...), so no spurious "Unknown option" warnings.
+- The [colour precedence rules](#which-rule-applies) are spelled out in full.
+- [Descriptions on hover](#descriptions-on-hover): a `#` comment on or above a declaration describes its names, with `name: text` keys for lists and `x[1..3]:` / `x7:` for array members. Hovering a name shows its kind and every description. An overridden description is a warning with a quick fix to remove it. `.xppcolors.json` entries take a `description` too.
 
 ## Version 0.4.0
 
@@ -294,7 +307,7 @@ Give any name in your models its own look, independent of the theme: the membran
 | `xpp-ode.identifierColors` in `.vscode/settings.json` | the whole workspace | Settings > search "XPP-ODE" > edit in settings.json |
 | `xpp-ode.identifierColors` in user settings | every workspace | same |
 
-Both places take the same object. Files override the setting, key by key. Changes apply immediately.
+Both places take the same object. Files override the setting, key by key (see [Which rule applies](#which-rule-applies)). Changes apply immediately.
 
 ### A complete example
 
@@ -340,7 +353,21 @@ Available groups:
 | `@builtins` | builtin functions and constants (`sin`, `heav`, `t`, `pi`, ...) |
 | `@keywords` | declaration keywords (`par`, `init`, `aux`, `done`, ...) |
 
-Precedence, most specific first: exact name > wildcard (the last listed wins) > group. Comments and text after `done` are never coloured.
+Comments and text after `done` are never coloured.
+
+### Which rule applies
+
+Every name gets **at most one** entry, chosen by these rules in order:
+
+1. **Exact name** (`"v"`). For an array name, its members too (`"u"` covers `u0`...`u9`), unless a member has its own entry.
+2. **Wildcard** (`"g_*"`). When several match, the one listed **last** wins.
+3. **Group** (`"@parameters"`). A name belongs to one group only, so groups never compete.
+
+The chosen entry **replaces** the others; properties are not combined. With `"@parameters": { "fontWeight": "bold" }` and `"gna": "#ff0000"`, `gna` is red and **not** bold. Whatever the entry leaves out comes from the theme, not from a lower rule; to keep the bold, write it again: `"gna": { "color": "#ff0000", "fontWeight": "bold" }`.
+
+When the same key appears in several places, the one closest to the file wins: the setting, then each `.xppcolors.json` from the workspace root down to the file's own folder, each overriding the one before for that key. The look and the `description` are overridden separately, so an entry that only adds a `description` keeps the colours given further up. The order above is applied afterwards, whatever the source: an exact name in your user settings still beats a wildcard in the folder's `.xppcolors.json`. Wildcards from all sources form one list, with the closer files' wildcards after (and so above) the setting's.
+
+Inside a style, `light`/`dark` properties override the base properties for that kind of theme.
 
 ### Values
 
@@ -373,6 +400,94 @@ Every VS Code theme declares itself as light, dark or high-contrast; `light`/`da
 - Hex colours show a swatch in `.xppcolors.json` and inside the `xpp-ode.identifierColors` block of `settings.json`; click it for the colour picker.
 - In `.xppcolors.json`, completion (`Ctrl+Space`, or typing `"` or `@`) offers the groups, every name declared in the folder's `.ode`/`.inc` files with its kind, and the style properties with their allowed values. Misspelled properties and invalid values are underlined.
 - Entries the extension cannot use (unknown group, bad colour, ...) are skipped and reported once as a warning; the rest still apply.
+
+## Descriptions on hover
+
+Write what a name means in a `#` comment, like a docstring, and hovering the name anywhere in the code shows it with the name's kind:
+
+```
+par gna=120   # Maximal sodium conductance (mS/cm^2)
+```
+
+> **gna** — parameter
+>
+> Maximal sodium conductance (mS/cm^2) (line 1)
+
+Names declared in `#include`d files show their descriptions too.
+
+### Where to write a description
+
+**After the code**, on the declaration line (or on any line of a line continued with `\`):
+
+| Comment | Meaning |
+|---|---|
+| `par gna=120  # Max Na conductance` | one name on the line: the whole comment describes it |
+| `par gna=120, gk=36  # gna: max Na; gk: max K` | `name: text` parts separated by `;` describe each name |
+| `par gna=120, gk=36  # conductances (mS/cm^2)` | several names and a plain comment: **shared** by all of them |
+
+The comment is split into parts only when **every** part is `name: text` for a name on that line; otherwise it is plain text, so `par gna=120  # units: mS/cm^2` describes `gna` as "units: mS/cm^2".
+
+**Above the declaration**, one `# name: text` line per name, directly above it (no blank line in between). Handy for long lists; other comment lines, such as section headers, are ignored:
+
+```
+# ---- sodium current ----
+# gna: maximal sodium conductance (mS/cm^2)
+# ena: sodium reversal potential (mV)
+par gna=120, ena=50
+```
+
+Keys are case-insensitive.
+
+### Arrays
+
+An array such as `x[1..10]` is one name for a plain comment, and keys can pick its members:
+
+| Key | Describes |
+|---|---|
+| `x: text` | the array and every member |
+| `x[3..5]: text` | members `x3`..`x5` |
+| `x[3,5]: text` | members `x3` and `x5`; lists and ranges mix: `x[1..3, 7, 9]` |
+| `x7: text` | only `x7` |
+
+```
+# x: membrane voltage of cell j (mV)
+# x[1..3]: excitatory cells
+# x7: the pacemaker cell
+x[1..10]'=-x[j]+i_syn[j]
+```
+
+A key for a member the array does not have (`x11:` or `x[9..12]:` above) is a warning.
+
+### Several descriptions for one name
+
+A name can have descriptions at several levels, and the hover shows them all, most specific first:
+
+1. its own: `x7:`, or the plain comment on its own line;
+2. a selection: `x[1..3]:`, `x[3,5]:`;
+3. inherited: `x:` seen from a member, or a comment shared by the names of a line.
+
+> **x7** — state variable (array x[1..10])
+>
+> the pacemaker cell (line 3)
+>
+> membrane voltage of cell j (mV) (line 1) — from x
+
+Two descriptions at the **same** level (1 or 2) are a mistake: `x3` above described by both `x[1..3]:` and a later `x[3,5]:`, or `gna` described both above its line and after it. The later one wins (a comment after the code counts as later than the lines above), and the other is marked with a warning "Description of "x3" is overridden by line 12" that links to the winner. Its quick fix (`Ctrl+.`) removes the overridden description.
+
+### Descriptions in `.xppcolors.json`
+
+For names in files you cannot edit, or shared by a folder of models, add a `description` to the entry in [`.xppcolors.json` or `xpp-ode.identifierColors`](#custom-colours-for-variables-and-parameters). An entry may hold only a description, which leaves the colours alone:
+
+```json
+{
+    "gna":         { "color": "#7ee787", "description": "Maximal sodium conductance (mS/cm^2)" },
+    "v":           { "description": "Membrane potential (mV)" },
+    "g_*":         { "description": "A conductance" },
+    "@parameters": { "description": "Units: mS/cm^2 unless stated" }
+}
+```
+
+These are shown after the comments, each with its key. Unlike colours, the levels do not hide each other: a name gets the description of its own entry, of every matching wildcard (last listed first) and of its group. An array member also gets its array's (`"x"` for `x7`). Keys with a selection (`"x[1..3]"`) are not supported here.
 
 ## Future Work
 

@@ -32,6 +32,8 @@ export interface IdentifierStyle extends ThemeStyle {
     light?: ThemeStyle;
     /** Overrides applied only in dark themes. */
     dark?: ThemeStyle;
+    /** Shown when hovering the name; not a visual property. */
+    description?: string;
 }
 
 /** Categories that can be styled as a whole with an "@name" key. */
@@ -155,11 +157,48 @@ function toStyle(value: unknown): IdentifierStyle | string {
         if (typeof variant === 'string') return `"${theme}": ${variant}`;
         style[theme] = variant;
     }
-    const hasAnything = (s: ThemeStyle) => THEME_KEYS.some(k => s[k] !== undefined);
-    if (!hasAnything(style) && !(style.light && hasAnything(style.light)) && !(style.dark && hasAnything(style.dark))) {
-        return 'style object has no properties (expected color, backgroundColor, fontWeight, fontStyle, textDecoration, opacity, borderColor, borderStyle, borderWidth or borderRadius)';
+    if (obj.description !== undefined) {
+        if (typeof obj.description !== 'string' || obj.description.trim() === '') return '"description" must be a non-empty string';
+        style.description = obj.description.trim();
+    }
+    if (!hasVisualProperty(style) && style.description === undefined) {
+        return 'style object has no properties (expected color, backgroundColor, fontWeight, fontStyle, textDecoration, opacity, borderColor, borderStyle, borderWidth, borderRadius or description)';
     }
     return style;
+}
+
+/** True when the style changes how the name looks, in some theme. */
+function hasVisualProperty(style: IdentifierStyle): boolean {
+    const hasAnything = (s: ThemeStyle | undefined) => s !== undefined && THEME_KEYS.some(k => s[k] !== undefined);
+    return hasAnything(style) || hasAnything(style.light) || hasAnything(style.dark);
+}
+
+/** The part of a configuration that paints: entries holding only a description are left out. */
+function visualConfig(config: ColorConfig): ColorConfig {
+    return {
+        styles: new Map([...config.styles].filter(([, style]) => hasVisualProperty(style))),
+        wildcards: config.wildcards.filter(w => hasVisualProperty(w.style)),
+        groups: new Map([...config.groups].filter(([, style]) => hasVisualProperty(style))),
+        errors: config.errors,
+    };
+}
+
+/**
+ * Descriptions from the config for a name, most specific first: exact, then matching wildcards
+ * (last listed first), then its group. Unlike colours, every level with a description contributes.
+ * An array member also gets the exact entry of its array (`arrayBase`), after its own.
+ */
+export function configDescriptionsFor(
+    nameLower: string, kind: DeclKind | undefined, config: ColorConfig, arrayBase?: string
+): { text: string; key: string }[] {
+    const candidates: [IdentifierStyle | undefined, string][] = [[config.styles.get(nameLower), nameLower]];
+    if (arrayBase) candidates.push([config.styles.get(arrayBase), arrayBase]);
+    for (const wildcard of [...config.wildcards].reverse()) {
+        if (wildcard.regex.test(nameLower)) candidates.push([wildcard.style, wildcard.pattern]);
+    }
+    const group = kind && GROUP_OF_KIND[kind];
+    if (group) candidates.push([config.groups.get(group), group]);
+    return candidates.flatMap(([style, key]) => (style?.description ? [{ text: style.description, key }] : []));
 }
 
 function toThemeStyle(obj: Record<string, unknown>): ThemeStyle | string {
@@ -213,22 +252,38 @@ function toThemeStyle(obj: Record<string, unknown>): ThemeStyle | string {
     return style;
 }
 
-/** Merges configurations; later ones override earlier ones for the same name or group. */
+/**
+ * Merges configurations; later ones override earlier ones for the same name, wildcard or group.
+ * The look and the description are overridden separately (see `overlay`).
+ */
 export function mergeColorConfigs(...configs: ColorConfig[]): ColorConfig {
     const styles = new Map<string, IdentifierStyle>();
     const wildcardsByPattern = new Map<string, WildcardStyle>();
     const groups = new Map<GroupName, IdentifierStyle>();
     const errors: string[] = [];
     for (const config of configs) {
-        config.styles.forEach((style, name) => styles.set(name, style));
+        config.styles.forEach((style, name) => styles.set(name, overlay(styles.get(name), style)));
         for (const w of config.wildcards) {
+            const earlier = wildcardsByPattern.get(w.pattern);
             wildcardsByPattern.delete(w.pattern);
-            wildcardsByPattern.set(w.pattern, w);
+            wildcardsByPattern.set(w.pattern, { ...w, style: overlay(earlier?.style, w.style) });
         }
-        config.groups.forEach((style, name) => groups.set(name, style));
+        config.groups.forEach((style, name) => groups.set(name, overlay(groups.get(name), style)));
         errors.push(...config.errors);
     }
     return { styles, wildcards: [...wildcardsByPattern.values()], groups, errors };
+}
+
+/**
+ * `later` replaces `earlier`'s look only when it has one, and its description only when it has
+ * one, so a subfolder entry that just adds a description keeps the parent's colours.
+ */
+function overlay(earlier: IdentifierStyle | undefined, later: IdentifierStyle): IdentifierStyle {
+    if (!earlier) return later;
+    const merged: IdentifierStyle = { ...(hasVisualProperty(later) ? later : earlier) };
+    delete merged.description;
+    const description = later.description ?? earlier.description;
+    return description === undefined ? merged : { ...merged, description };
 }
 
 /** A stable key for a style, so equal styles share one decoration type. */
@@ -300,7 +355,8 @@ function allWords(lines: string[]): Set<string> {
  * then "*" wildcards (the last matching one wins), then "@group" entries resolved through the
  * parser. Option names on "@" lines belong to "@options" when it is styled.
  */
-export function collectStyledRanges(text: string, config: ColorConfig): StyledRanges[] {
+export function collectStyledRanges(text: string, fullConfig: ColorConfig): StyledRanges[] {
+    const config = visualConfig(fullConfig);
     const byKey = new Map<string, StyledRanges>();
     const add = (style: IdentifierStyle, ranges: ColoredRange[]) => {
         if (ranges.length === 0) return;

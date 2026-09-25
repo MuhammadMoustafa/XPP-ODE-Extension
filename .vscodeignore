@@ -27,3 +27,6 @@ xppall/**
 docs/**
 ode/**
 !CHANGELOG.md
+
+# Open in XPP Interactive front end, hidden until 0.5.0
+media/**

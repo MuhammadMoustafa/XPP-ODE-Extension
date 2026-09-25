@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
-import { parseXpp, DeclKind } from '../utils/xppModel';
+import { parseXpp } from '../utils/xppModel';
+import { collectDescriptions, KIND_LABELS } from '../utils/descriptionsCore';
 import { GROUP_NAMES } from '../utils/identifierColorsCore';
 import { COLORS_FILE_NAME } from './identifierColorProvider';
 
@@ -8,8 +9,9 @@ const MAX_FILES = 200;
 
 /**
  * Suggests keys while editing ".xppcolors.json": the "@group" names and every name declared
- * in the .ode/.inc files of the folder (and its subfolders), so names need not be typed from memory.
- * Value completion (style properties, enums, hex colours) comes from the JSON schema.
+ * in the .ode/.inc files of the folder (and its subfolders), with the description written in their
+ * comments, so names need not be typed from memory.
+ * Value completion (style properties such as "description", enums, hex colours) comes from the JSON schema.
  */
 export class ColorsFileCompletionProvider implements vscode.CompletionItemProvider {
     static register(): vscode.Disposable {
@@ -30,10 +32,11 @@ export class ColorsFileCompletionProvider implements vscode.CompletionItemProvid
             item.sortText = `0${group}`;
             items.push(item);
         }
-        for (const [name, where] of await this.declaredNames(document)) {
+        for (const [name, { where, description }] of await this.declaredNames(document)) {
             if (already.has(name)) continue;
             const item = new vscode.CompletionItem(name, vscode.CompletionItemKind.Variable);
             item.detail = where;
+            item.documentation = description;
             item.sortText = `1${name}`;
             items.push(item);
         }
@@ -51,9 +54,9 @@ export class ColorsFileCompletionProvider implements vscode.CompletionItemProvid
         return items;
     }
 
-    /** name -> "kind in file.ode" for every declaration in the folder's XPP files. */
-    private async declaredNames(document: vscode.TextDocument): Promise<Map<string, string>> {
-        const names = new Map<string, string>();
+    /** name -> "kind in file.ode" and its comment description, for every declaration in the folder's XPP files. */
+    private async declaredNames(document: vscode.TextDocument): Promise<Map<string, { where: string; description?: string }>> {
+        const names = new Map<string, { where: string; description?: string }>();
         if (document.uri.scheme !== 'file') return names;
         const folder = path.dirname(document.uri.fsPath);
         const files = await vscode.workspace.findFiles(
@@ -67,17 +70,17 @@ export class ColorsFileCompletionProvider implements vscode.CompletionItemProvid
                 continue;
             }
             const fileName = path.basename(file.fsPath);
+            const descriptions = collectDescriptions(text).byName;
             for (const decl of parseXpp(text).declarations) {
                 if (decl.kind === 'array' || names.has(decl.name)) continue;
-                names.set(decl.name, `${describe(decl.kind)} in ${fileName}`);
+                names.set(decl.name, {
+                    where: `${KIND_LABELS[decl.kind]} in ${fileName}`,
+                    description: descriptions.get(decl.nameLower)?.[0]?.text,
+                });
             }
         }
         return names;
     }
-}
-
-function describe(kind: DeclKind): string {
-    return kind === 'state' ? 'state variable' : kind;
 }
 
 /** True when the cursor is where a top-level property name goes (brace depth 1, before a colon). */

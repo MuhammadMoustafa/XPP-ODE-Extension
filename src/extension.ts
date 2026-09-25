@@ -7,12 +7,16 @@ import { isXppDocument, isOdeOrIncPath, XPP_LANGUAGE_ID } from './utils/constant
 import { toggleComment } from './utils/commenting';
 import { handleNewFile } from './utils/fileHandler';
 import { RunOdeFileProvider } from './providers/RunOdeFileProvider';
-import { InteractiveProvider } from './providers/interactiveProvider';
+// Open in XPP Interactive (xppautX) is hidden until 0.5.0: its command, menu entry and
+// xpp-ode.serverCommand setting are left out of package.json for now.
+// import { InteractiveProvider } from './providers/interactiveProvider';
 import { ExtractVariableProvider } from './providers/extractVariableProvider';
 import { IdentifierColorProvider } from './providers/identifierColorProvider';
 import { XppColorPickerProvider } from './providers/colorPickerProvider';
 import { ColorsFileCompletionProvider } from './providers/colorsFileCompletionProvider';
 import { OperatorHoverProvider } from './providers/operatorHoverProvider';
+import { DescriptionHoverProvider } from './providers/descriptionHoverProvider';
+import { DescriptionQuickFixProvider } from './providers/descriptionQuickFixProvider';
 
 const XPP_SELECTOR: vscode.DocumentSelector = { scheme: 'file', language: XPP_LANGUAGE_ID };
 
@@ -51,6 +55,10 @@ export function activate(context: vscode.ExtensionContext) {
         vscode.languages.registerRenameProvider(XPP_SELECTOR, new XppRenameProvider()),
         vscode.languages.registerDocumentHighlightProvider(XPP_SELECTOR, new XppDocumentHighlightProvider()),
         vscode.languages.registerHoverProvider(XPP_SELECTOR, new OperatorHoverProvider()),
+        vscode.languages.registerHoverProvider(XPP_SELECTOR, new DescriptionHoverProvider()),
+        vscode.languages.registerCodeActionsProvider(XPP_SELECTOR, new DescriptionQuickFixProvider(), {
+            providedCodeActionKinds: DescriptionQuickFixProvider.providedCodeActionKinds,
+        }),
         vscode.workspace.onDidChangeConfiguration((event) => {
             if (OPERATOR_SETTINGS.some((setting) => event.affectsConfiguration(setting))) {
                 vscode.workspace.textDocuments.filter(isXppDocument).forEach((document) => {
@@ -73,7 +81,7 @@ export function activate(context: vscode.ExtensionContext) {
     );
 
     new RunOdeFileProvider(context);
-    new InteractiveProvider(context);
+    // new InteractiveProvider(context);
 
     const extractVariableProvider = new ExtractVariableProvider();
     context.subscriptions.push(

@@ -1,5 +1,5 @@
 import * as assert from 'assert';
-import { parseColorConfig, mergeColorConfigs, findIdentifierRanges, styleKey, collectStyledRanges } from '../src/utils/identifierColorsCore';
+import { parseColorConfig, mergeColorConfigs, findIdentifierRanges, styleKey, collectStyledRanges, configDescriptionsFor } from '../src/utils/identifierColorsCore';
 
 suite('Identifier colours', () => {
     suite('parseColorConfig', () => {
@@ -63,6 +63,15 @@ suite('Identifier colours', () => {
             const merged = mergeColorConfigs(parseColorConfig({ x: '#111', y: '#222' }), parseColorConfig({ x: '#333' }));
             assert.deepStrictEqual([...merged.styles.entries()], [['x', { color: '#333' }], ['y', { color: '#222' }]]);
             assert.strictEqual(styleKey({ color: '#ABC' }), styleKey({ color: '#abc', fontStyle: undefined }));
+        });
+
+        test('the look and the description are overridden separately', () => {
+            const merged = mergeColorConfigs(
+                parseColorConfig({ x: { color: '#111', description: 'parent' }, y: '#222', '@states': '#333' }),
+                parseColorConfig({ x: { description: 'child' }, y: { color: '#444', description: 'child' }, '@states': { fontWeight: 'bold' } }));
+            assert.deepStrictEqual(merged.styles.get('x'), { color: '#111', description: 'child' });
+            assert.deepStrictEqual(merged.styles.get('y'), { color: '#444', description: 'child' });
+            assert.deepStrictEqual(merged.groups.get('@states'), { fontWeight: 'bold' });
         });
     });
 
@@ -134,6 +143,85 @@ suite('Identifier colours', () => {
             const grouped = styled(text, { '@states': '#222', u1: '#333' });
             assert.deepStrictEqual(grouped.get('#222'), ['0:0', '0:10', '0:15', '1:9', '2:0', '2:4']);
             assert.deepStrictEqual(grouped.get('#333'), ['1:6']);
+        });
+    });
+
+    suite('descriptions', () => {
+        test('a description is trimmed and kept with the style', () => {
+            const config = parseColorConfig({ gna: { color: '#f00', description: '  sodium conductance  ' } });
+            assert.deepStrictEqual(config.errors, []);
+            assert.deepStrictEqual(config.styles.get('gna'), { color: '#f00', description: 'sodium conductance' });
+        });
+
+        test('an object with only a description is valid', () => {
+            const config = parseColorConfig({ gna: { description: 'sodium' }, 'v_*': { description: 'voltages' }, '@states': { description: 'states' } });
+            assert.deepStrictEqual(config.errors, []);
+            assert.deepStrictEqual(config.styles.get('gna'), { description: 'sodium' });
+            assert.deepStrictEqual(config.wildcards.map(w => w.style), [{ description: 'voltages' }]);
+            assert.deepStrictEqual(config.groups.get('@states'), { description: 'states' });
+        });
+
+        test('an empty or non-string description is an error', () => {
+            const config = parseColorConfig({ a: { description: '   ' }, b: { color: '#fff', description: 5 }, ok: { description: 'fine' } }, 'f');
+            assert.deepStrictEqual([...config.styles.keys()], ['ok']);
+            assert.strictEqual(config.errors.length, 2);
+            assert.ok(config.errors.every(e => e.startsWith('f: ')));
+        });
+
+        test('description-only entries produce no styled ranges', () => {
+            const text = "par v_na=1, gna=2\nx'=-x*gna\ndone";
+            assert.deepStrictEqual(collectStyledRanges(text, parseColorConfig({
+                gna: { description: 'sodium' }, 'v_*': { description: 'voltages' }, '@states': { description: 'states' },
+            })), []);
+            const mixed = collectStyledRanges(text, parseColorConfig({ gna: { description: 'sodium' }, x: '#111' }));
+            assert.deepStrictEqual(mixed.map(e => e.style.color), ['#111']);
+        });
+    });
+
+    suite('configDescriptionsFor', () => {
+        const config = parseColorConfig({
+            'g*': { description: 'first wildcard' },
+            '*na': { description: 'second wildcard' },
+            '*a': '#123',
+            gna: { color: '#f00', description: 'exact' },
+            gk: '#0f0',
+            '@parameters': { description: 'group' },
+            x: { description: 'array' },
+            x7: { description: 'member' },
+            '@states': { description: 'states' },
+        });
+
+        test('exact, then wildcards last-listed first, then the group', () => {
+            assert.deepStrictEqual(configDescriptionsFor('gna', 'parameter', config), [
+                { text: 'exact', key: 'gna' },
+                { text: 'second wildcard', key: '*na' },
+                { text: 'first wildcard', key: 'g*' },
+                { text: 'group', key: '@parameters' },
+            ]);
+        });
+
+        test('levels without a description are skipped and do not hide the others', () => {
+            assert.deepStrictEqual(configDescriptionsFor('gk', 'parameter', config), [
+                { text: 'first wildcard', key: 'g*' },
+                { text: 'group', key: '@parameters' },
+            ]);
+        });
+
+        test('no kind means no group', () => {
+            assert.deepStrictEqual(configDescriptionsFor('gk', undefined, config), [{ text: 'first wildcard', key: 'g*' }]);
+            assert.deepStrictEqual(configDescriptionsFor('zz', undefined, config), []);
+        });
+
+        test('an array member gets its base after its own entry', () => {
+            assert.deepStrictEqual(configDescriptionsFor('x7', 'state', config, 'x'), [
+                { text: 'member', key: 'x7' },
+                { text: 'array', key: 'x' },
+                { text: 'states', key: '@states' },
+            ]);
+        });
+
+        test('a name that is not an array member does not get a base', () => {
+            assert.deepStrictEqual(configDescriptionsFor('x7', 'state', config).map(d => d.key), ['x7', '@states']);
         });
     });
 

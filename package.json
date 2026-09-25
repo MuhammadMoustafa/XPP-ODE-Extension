@@ -2,7 +2,7 @@
 	"name": "xpp",
 	"displayName": "XPP",
 	"description": "Provides XPP \"ode, inc\" syntax and functionalities for VSCode",
-	"version": "0.4.0",
+	"version": "0.4.1",
 	"publisher": "MuhammadMoustafa",
 	"author": {
 		"name": "Muhammad Moustafa",
@@ -71,12 +71,6 @@
 				"icon": "$(play)"
 			},
 			{
-				"command": "xpp.openInteractive",
-				"title": "Open in XPP Interactive",
-				"category": "XPP-ODE",
-				"icon": "$(graph-line)"
-			},
-			{
 				"command": "xpp.extractVariable",
 				"title": "XPP: Extract to Variable"
 			},
@@ -90,11 +84,6 @@
 			"editor/title": [
 				{
 					"command": "xpp.runOdeFile",
-					"group": "navigation",
-					"when": "resourceLangId == xpp"
-				},
-				{
-					"command": "xpp.openInteractive",
 					"group": "navigation",
 					"when": "resourceLangId == xpp"
 				}
@@ -114,11 +103,6 @@
 					"type": "string",
 					"default": "xppaut",
 					"markdownDescription": "Command that runs an `.ode` file; the file name is appended. It runs in the file's folder. Examples: `xppaut`, `/usr/local/bin/xppaut`, `C:\\\\xppall\\\\xppaut.exe`, `wsl xppaut`, `xppaut -xorfix`."
-				},
-				"xpp-ode.serverCommand": {
-					"type": "string",
-					"default": "xppcore-server",
-					"markdownDescription": "Command that starts `xppcore-server`, the X11-free xppaut from [xppautX](https://github.com/MuhammadMoustafa/xppautX), for **Open in XPP Interactive**; the file name is appended and it runs in the file's folder. Examples: `xppcore-server`, `/opt/xppautX/xppcore-server`, `wsl -e /home/me/xppautX/xppcore-server`."
 				},
 				"xpp-ode.display": {
 					"type": "string",
@@ -173,7 +157,7 @@
 				"xpp-ode.identifierColors": {
 					"type": "object",
 					"default": {},
-					"markdownDescription": "Colours and styles for specific variables, parameters or functions, independent of the theme. Keys are XPP names (case-insensitive) or a category: `@states`, `@parameters`, `@fixed`, `@functions`, `@aux`, `@wiener`, `@markov`, `@tables`, `@options`, `@builtins`, `@keywords`. Values are a hex colour (`\"#ff8800\"`) or a style object with any of `color`, `backgroundColor`, `fontWeight`, `fontStyle`, `textDecoration`, `opacity`, `borderColor`, `borderStyle`, `borderWidth`, `borderRadius`, plus optional `light` / `dark` objects with theme-specific overrides. Put the setting in a workspace `.vscode/settings.json`, or create a `.xppcolors.json` file with the same content in a folder, to style every `.ode`/`.inc` file in that folder.",
+					"markdownDescription": "Colours and styles for specific variables, parameters or functions, independent of the theme. Keys are XPP names (case-insensitive) or a category: `@states`, `@parameters`, `@fixed`, `@functions`, `@aux`, `@wiener`, `@markov`, `@tables`, `@options`, `@builtins`, `@keywords`. Values are a hex colour (`\"#ff8800\"`) or a style object with any of `color`, `backgroundColor`, `fontWeight`, `fontStyle`, `textDecoration`, `opacity`, `borderColor`, `borderStyle`, `borderWidth`, `borderRadius`, plus optional `light` / `dark` objects with theme-specific overrides, and a `description` shown when hovering the name. Put the setting in a workspace `.vscode/settings.json`, or create a `.xppcolors.json` file with the same content in a folder, to style every `.ode`/`.inc` file in that folder.",
 					"additionalProperties": {
 						"anyOf": [
 							{
@@ -385,6 +369,11 @@
 										],
 										"pattern": "^\\d+(\\.\\d+)?(px|em|rem|%)?$",
 										"description": "Box corner radius, e.g. \"3px\""
+									},
+									"description": {
+										"type": "string",
+										"minLength": 1,
+										"description": "Text shown when hovering the name, after the descriptions written in its comments"
 									}
 								}
 							}

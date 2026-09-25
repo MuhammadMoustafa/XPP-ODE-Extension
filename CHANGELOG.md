@@ -2,7 +2,7 @@
 
 All notable changes to this extension will be documented in this file.
 
-## Unreleased
+## Version 0.4.1
 
 - New checks for how XPP's parser groups `^`, comparisons and unary minus, all confirmed by running the expressions through `add_expr()`/`evaluate()` in xppautX and the failing files through `xppautX -silent`. They follow from one table: priority 7 is `^`, `**` and every comparison; priority 6 is `*`, `/`, `&` and unary minus; priority 4 is binary `+`, `-` and `|`.
   - **Error**: a sign where XPP allows none. A sign is only legal at the start of an expression, after `(` or after `,`, so `2*-3`, `x^-2`, `a+-b`, `if(t<-1.3)` and a unary `+` anywhere are rejected and the file does not load (`ERROR compiling X'`). The message gives the bracketing that works, and notes that `(+2)` is not a fix for a `+`.
@@ -17,6 +17,11 @@ All notable changes to this extension will be documented in this file.
 - 38 option names XPP accepts but the extension did not know (`s1`, `slo1`, `shi1`, `histlo`, `speccol`, `ncol`, `quiet`, ...) no longer produce a spurious "Unknown option" warning.
 - Hovering over `^`, `**` or a comparison operator explains its priority, with worked examples.
 - The parsed model now exposes the expression on each line, with comments removed and `\` continuations joined, so these checks cannot fire inside a comment or after `done`.
+- README: the custom-colour precedence (exact name > wildcard > group, one entry per name, closer files override) is spelled out with examples.
+- Descriptions on hover, like docstrings. A `#` comment after the code of a declaration line describes its name, or is shared by all its names; `name: text` parts separated by `;` describe each name, and `# name: text` lines directly above the declaration do the same for long lists. Keys can pick array members: `x7:`, `x[3..5]:`, `x[1..3, 7]:`. Hovering a name in code shows its kind and every description that applies, most specific first (own, then selection, then the array's or the shared one), including those in `#include`d files.
+  - **Warning**: two descriptions at the same level for one name. The later one wins; the other links to it and has a quick fix that removes it.
+  - **Warning**: a key for an array member that does not exist (`x11:` for `x[1..10]`).
+  - `.xppcolors.json` and `xpp-ode.identifierColors` entries take a `description`, shown after the comments; an entry may hold only a description. Every level contributes: the name's own entry, its array's, each matching wildcard and its group. Completion of names in `.xppcolors.json` shows their comment description.
 
 ## Version 0.4.0
 

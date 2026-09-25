@@ -1,7 +1,6 @@
 import * as vscode from 'vscode';
-import * as fs from 'fs';
-import * as path from 'path';
 import { parseXpp } from '../utils/xppModel';
+import { readIncludedFiles } from '../utils/includeFiles';
 import { checkSemantics, SemanticResult } from '../utils/semanticCheckerCore';
 
 const SEVERITY: Record<SemanticResult['severity'], vscode.DiagnosticSeverity> = {
@@ -18,14 +17,8 @@ export class SemanticChecker {
         // Names declared in #include'd files count as defined. An .inc file cannot know what the
         // including .ode defines, so undefined-name checks are skipped for it.
         const externalNames = new Set<string>();
-        for (const include of model.includes) {
-            const includedPath = path.resolve(path.dirname(document.uri.fsPath), include.path);
-            try {
-                const text = fs.readFileSync(includedPath, 'utf8');
-                parseXpp(text).declarations.forEach(d => externalNames.add(d.nameLower));
-            } catch {
-                // Missing include: XPP itself will complain; nothing to add here.
-            }
+        for (const included of readIncludedFiles(document.uri.fsPath, model.includes)) {
+            parseXpp(included.text).declarations.forEach(d => externalNames.add(d.nameLower));
         }
 
         return checkSemantics(model, externalNames, isIncFile).map(res => {

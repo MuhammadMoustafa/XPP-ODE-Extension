@@ -68,7 +68,7 @@ export class IdentifierColorProvider implements vscode.Disposable {
     }
 
     private refreshEditor(editor: vscode.TextEditor): void {
-        const config = this.loadConfig(editor.document);
+        const config = IdentifierColorProvider.loadConfig(editor.document);
         this.reportErrors(config.errors);
 
         const rangesByStyle = new Map<string, vscode.Range[]>();
@@ -109,7 +109,7 @@ export class IdentifierColorProvider implements vscode.Disposable {
     }
 
     /** Settings first, then every colours file from the workspace root down to the document folder. */
-    private loadConfig(document: vscode.TextDocument): ColorConfig {
+    public static loadConfig(document: vscode.TextDocument): ColorConfig {
         const raw = vscode.workspace.getConfiguration('xpp-ode', document).get<unknown>('identifierColors');
         const configs = [parseColorConfig(raw, `setting "${SETTING_KEY}"`)];
         if (document.uri.scheme === 'file') {

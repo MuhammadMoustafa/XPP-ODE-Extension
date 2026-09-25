@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "XPP identifier colours",
-  "description": "Colours and styles for XPP names in every .ode/.inc file of this folder and its subfolders. Keys: a name (case-insensitive), a wildcard such as \"v_*\", or a category such as \"@states\".",
+  "description": "Colours, styles and hover descriptions for XPP names in every .ode/.inc file of this folder and its subfolders. Keys: a name (case-insensitive), a wildcard such as \"v_*\", or a category such as \"@states\".",
   "type": "object",
   "properties": {
     "@states": {
@@ -228,6 +228,11 @@
           ],
           "pattern": "^\\d+(\\.\\d+)?(px|em|rem|%)?$",
           "description": "Box corner radius, e.g. \"3px\""
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Text shown when hovering the name in an .ode/.inc file, after the descriptions written in its comments. An object may hold only a description, which leaves the colours alone."
         }
       },
       "defaultSnippets": [
