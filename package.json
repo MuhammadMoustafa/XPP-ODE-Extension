@@ -37,6 +37,12 @@
 	"activationEvents": [
 		"onStartupFinished"
 	],
+	"keywords": [
+		"xpp",
+		"xppaut",
+		"auto",
+		"ode"
+	],
 	"categories": [
 		"Programming Languages"
 	],
