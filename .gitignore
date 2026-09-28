@@ -5,5 +5,7 @@ test_files
 *.pat
 out
 xppall/
-docs/
+docs/*
+!docs/roadmap.md
 ode/
+images/*.mp4
