@@ -24,8 +24,13 @@ suite('XPP operator rules', () => {
         test('only what XPP refuses is an error; the rest is advisory', () => {
             assert.deepStrictEqual(DEFAULT_SEVERITY, {
                 'unary-sign': 'error',                  // the file does not load at all
+                'unsupported-operator': 'error',        // "!=", "&&", "||", "!": the file does not load
+                'if-syntax': 'error',                   // an unbracketed or else-less if: does not load
                 'comparison-precedence': 'warning',     // silently takes the wrong branch
                 'chained-comparison': 'warning',        // silently true when neither half holds
+                'logical-precedence': 'warning',        // "&" or "|" silently regrouped with arithmetic
+                'division-by-zero': 'warning',          // "1/0" is silently 4.48e14
+                'if-trailing-operator': 'information',  // "if(..)else(b)+5" adds 5 to the whole if
                 'unary-minus-power': 'information',     // usually intended, e.g. exp(-x^2)
                 'power-associativity': 'information',   // legal, just not what maths notation means
             });
@@ -198,6 +203,25 @@ suite('XPP operator rules', () => {
             assert.deepStrictEqual(types('2*+3'), ['unary-sign']);   // REJECTED
         });
 
+        test('carries the text that fixes the sign, replacing the reported span', () => {
+            const fixed = (expression: string) => checkExpression(expression).map(r =>
+                expression.substring(0, r.start) + r.replacement + expression.substring(r.end));
+            assert.deepStrictEqual(fixed('2*-3'), ['2*(-3)']);
+            assert.deepStrictEqual(fixed('2*-sin(x)'), ['2*(-sin(x))']);
+            assert.deepStrictEqual(fixed('x^-(a+b)'), ['x^(-(a+b))']);
+            assert.deepStrictEqual(fixed('2*-3E-5'), ['2*(-3E-5)']);
+            assert.deepStrictEqual(fixed('2*+3'), ['2*3']);      // a "+" is dropped, not bracketed
+            assert.deepStrictEqual(fixed('+2^2'), ['2^2']);
+        });
+
+        test('offers no replacement without an operand, or across a continued line', () => {
+            assert.strictEqual(checkExpression('2*-').map(r => r.replacement)[0], undefined);
+            const [result] = run("x'=2*-\\\n3\n");
+            assert.strictEqual(result.type, 'unary-sign');
+            assert.strictEqual(result.replacement, undefined);
+            assert.deepStrictEqual(run("x'=2*-3\n").map(r => r.replacement), ['(-3)']);
+        });
+
         test('tells you to drop a "+", since brackets do not rescue it', () => {
             // "(+2)" and "2*(+3)" are REJECTED too, so "(+2)" is not a fix.
             const [result] = checkExpression('+2*a');
@@ -243,6 +267,157 @@ suite('XPP operator rules', () => {
         });
     });
 
+    suite('operators XPP does not have', () => {
+        // Each of these was confirmed to stop the file from loading in xppautX.
+        test('flags "!=", "&&", "||" and a unary "!"', () => {
+            assert.deepStrictEqual(types('1!=2'), ['unsupported-operator']);   // "illegal expression: 1!"
+            assert.deepStrictEqual(types('a&&b'), ['unsupported-operator']);   // "Illegal syntax"
+            assert.deepStrictEqual(types('a||b'), ['unsupported-operator']);   // "Illegal syntax"
+            assert.deepStrictEqual(types('!1'), ['unsupported-operator']);     // "illegal expression: !"
+            assert.deepStrictEqual(types('a&!b'), ['unsupported-operator']);
+        });
+
+        test('"!=" is no longer treated as a comparison', () => {
+            assert.deepStrictEqual(types('a+b!=c'), ['unsupported-operator']);
+        });
+
+        test('accepts the single "&" and "|" and not()', () => {
+            assert.deepStrictEqual(types('a&b'), []);
+            assert.deepStrictEqual(types('a|b'), []);
+            assert.deepStrictEqual(types('not(a==b)'), []);
+        });
+
+        test('says what to write instead', () => {
+            assert.ok(checkExpression('a!=b')[0].message.includes('"not(a==b)"'), checkExpression('a!=b')[0].message);
+            assert.ok(checkExpression('a&&b')[0].message.includes('"&"'), checkExpression('a&&b')[0].message);
+            assert.ok(checkExpression('!a')[0].message.includes('not('), checkExpression('!a')[0].message);
+        });
+
+        test('carries the text that fixes it', () => {
+            const fixed = (expression: string) => checkExpression(expression).map(r =>
+                r.replacement === undefined ? undefined : expression.substring(0, r.start) + r.replacement + expression.substring(r.end));
+            assert.deepStrictEqual(fixed('a&&b'), ['a&b']);
+            assert.deepStrictEqual(fixed('a || b'), ['a | b']);
+            assert.deepStrictEqual(fixed('!x'), ['not(x)']);
+            assert.deepStrictEqual(fixed('a&!(x<1)'), ['a&not(x<1)']);
+            assert.deepStrictEqual(fixed('a!=b'), ['not(a==b)']);
+            assert.deepStrictEqual(fixed('if(x!=0)then(1)else(2)'), ['if(not(x==0))then(1)else(2)']);
+            assert.deepStrictEqual(fixed('a!=b&c<d'), ['not(a==b)&c<d']);
+        });
+
+        test('rewrites "!=" only when its operands are complete', () => {
+            // "a+b!=c": which operands were meant is not certain, so there is no sure fix.
+            const fixes = (expression: string) => checkExpression(expression).map(r => r.replacement);
+            assert.deepStrictEqual(fixes('a+b!=c'), [undefined]);
+            assert.deepStrictEqual(fixes('a!=b*c'), [undefined]);
+            assert.deepStrictEqual(fixes('a^2!=b'), [undefined]);
+        });
+
+        test('never flags a derived parameter "!name=..."', () => {
+            assert.deepStrictEqual(run('par a=1\n!b=a*2\n! c = a'), []);
+        });
+    });
+
+    suite('"&" and "|" beside arithmetic', () => {
+        // XPP: "&" has priority 6 like "*" and "/", "|" priority 4 like "+" and "-".
+        test('flags a grouping that differs from the usual reading', () => {
+            assert.deepStrictEqual(types('1+1&1'), ['logical-precedence']);   // XPP: 1+(1&1) = 2
+            assert.deepStrictEqual(types('a&b*c'), ['logical-precedence']);   // XPP: (a&b)*c
+            assert.deepStrictEqual(types('a&b+c'), ['logical-precedence']);   // XPP: (a&b)+c
+            assert.deepStrictEqual(types('a|b-c'), ['logical-precedence']);   // XPP: (a|b)-c; a=2,b=0,c=1 gives 0
+            assert.deepStrictEqual(types('a|b*c+d'), ['logical-precedence']); // XPP: (a|(b*c))+d
+            assert.deepStrictEqual(types('a+b*c&d'), ['logical-precedence']); // XPP: a+((b*c)&d)
+        });
+
+        test('accepts groupings that agree with the usual reading', () => {
+            assert.deepStrictEqual(types('a*b&c'), []);     // (a*b)&c either way
+            assert.deepStrictEqual(types('a+b|c'), []);     // (a+b)|c either way
+            assert.deepStrictEqual(types('a|b*c'), []);     // a|(b*c) either way
+            assert.deepStrictEqual(types('a|b&c'), []);
+            assert.deepStrictEqual(types('a&b|c'), []);
+            assert.deepStrictEqual(types('x<1&y>2'), []);
+            assert.deepStrictEqual(types('a&b^2'), []);
+            assert.deepStrictEqual(types('(a+b)&c'), []);
+            assert.deepStrictEqual(types('a&(b*c)'), []);
+            assert.deepStrictEqual(types('-a&b'), []);
+        });
+
+        test('reports a chain once', () => {
+            assert.deepStrictEqual(types('a+b&c&d'), ['logical-precedence']);
+        });
+
+        test('spells out both readings', () => {
+            const [left] = checkExpression('a+b&c');
+            assert.ok(left.message.includes('"a+(b&c)"'), left.message);
+            assert.ok(left.message.includes('"(a+b)&c"'), left.message);
+            const [right] = checkExpression('a|b-c');
+            assert.ok(right.message.includes('"(a|b)-c"'), right.message);
+            assert.ok(right.message.includes('"a|(b-c)"'), right.message);
+        });
+    });
+
+    suite('if/then/else', () => {
+        test('accepts the fully bracketed form, with or without spaces, and nested', () => {
+            assert.deepStrictEqual(types('if(x>0)then(1)else(2)'), []);
+            assert.deepStrictEqual(types('if (x>0) then (1) else (2)'), []);
+            assert.deepStrictEqual(types('IF(x>0)THEN(1)ELSE(2)'), []);
+            assert.deepStrictEqual(types('if(x>0)then(if(y>0)then(1)else(2))else(3)'), []);
+            assert.deepStrictEqual(types('2*if(x>0)then(1)else(2)'), []);
+        });
+
+        test('flags any part that is not in brackets', () => {
+            // All confirmed not to load in xppautX.
+            assert.deepStrictEqual(types('if 1>0 then 10 else 20'), ['if-syntax']);    // "Illegal syntax"
+            assert.deepStrictEqual(types('if(1>0)then 10 else 20'), ['if-syntax']);    // "illegal expression: 10EL"
+            assert.deepStrictEqual(types('if(1>0)then -10 else 20'), ['if-syntax']);
+            assert.deepStrictEqual(types('if(1>0)then(10)else 20'), ['if-syntax']);
+            assert.deepStrictEqual(types('if(1>0)then10else20'), ['if-syntax']);
+        });
+
+        test('flags a missing else', () => {
+            // "If statement missing ELSE or THEN"
+            assert.deepStrictEqual(types('if(1>0)then(10)'), ['if-syntax']);
+            assert.ok(checkExpression('if(1>0)then(10)')[0].message.includes('no else'), checkExpression('if(1>0)then(10)')[0].message);
+        });
+
+        test('explains that spaces do not separate the parts', () => {
+            const [result] = checkExpression('if(1>0)then 10 else 20');
+            assert.ok(result.message.includes('if(...)then(...)else(...)'), result.message);
+            assert.ok(result.message.includes('"then10else20"'), result.message);
+        });
+
+        test('notes an operator right after the else part', () => {
+            // XPP: if(1>0)then(10)else(20)+5 is 15, the "+5" applies to the whole if.
+            assert.deepStrictEqual(types('if(1>0)then(10)else(20)+5'), ['if-trailing-operator']);
+            assert.deepStrictEqual(types('if(x>0)then(1)else(2)*y'), ['if-trailing-operator']);
+            assert.deepStrictEqual(types('(if(x>0)then(1)else(2))+5'), []);
+            assert.deepStrictEqual(types('if(x>0)then(1)else(2+5)'), []);
+            assert.deepStrictEqual(types('max(if(x>0)then(1)else(2),3)'), []);
+            const [result] = checkExpression('if(1>0)then(10)else(20)+5');
+            assert.ok(result.message.includes('"(if(1>0)then(10)else(20))+5"'), result.message);
+        });
+    });
+
+    suite('division by a literal zero', () => {
+        test('flags a divisor that is literally zero', () => {
+            // XPP: 1/0 is 4.48e14 and 0/0 is 0, without a word.
+            assert.deepStrictEqual(types('1/0'), ['division-by-zero']);
+            assert.deepStrictEqual(types('0/0'), ['division-by-zero']);
+            assert.deepStrictEqual(types('x/0.0'), ['division-by-zero']);
+            assert.deepStrictEqual(types('x/(0)'), ['division-by-zero']);
+            assert.deepStrictEqual(types('x/ 0'), ['division-by-zero']);
+            assert.deepStrictEqual(snippet('1+x/(0)'), ['/(0)']);
+        });
+
+        test('accepts any other divisor', () => {
+            assert.deepStrictEqual(types('x/0.5'), []);
+            assert.deepStrictEqual(types('x/1e-3'), []);
+            assert.deepStrictEqual(types('x/(0+a)'), []);
+            assert.deepStrictEqual(types('x/y'), []);
+            assert.deepStrictEqual(types('0/x'), []);
+        });
+    });
+
     suite('over a whole file', () => {
         test('checks every kind of right-hand side', () => {
             const results = run([
@@ -281,6 +456,13 @@ suite('XPP operator rules', () => {
             assert.deepStrictEqual(run('# -x^2 and 2^3^2'), []);
             assert.deepStrictEqual(run('" -x^2 and 2^3^2'), []);
             assert.deepStrictEqual(run("x'=-x\ndone\n-y^2 and 2^3^2"), []);
+        });
+
+        test('ignores the new checks in comments, "@", "#include" and after "done"', () => {
+            assert.deepStrictEqual(run("x'=-x # a!=b, a&&b, !a, 1/0, if 1 then 2"), []);
+            assert.deepStrictEqual(run('#include a&&b.inc\n@ total=1/0'), []);
+            assert.deepStrictEqual(run("x'=-x\ndone\na!=b and 1/0"), []);
+            assert.deepStrictEqual(run("y(t)=int{exp(-t)#x}"), []);
         });
 
         test('does not flag declaration values, which XPP reads as plain numbers', () => {

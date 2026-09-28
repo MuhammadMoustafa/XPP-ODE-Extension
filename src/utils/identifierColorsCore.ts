@@ -1,8 +1,10 @@
 /**
  * User-defined colours for identifiers ("x" in red, "a" bold green, ...), independent of the
  * theme. The configuration is a map from identifier name (or "@group") to a hex colour or a
- * style object, coming from the "xpp-ode.identifierColors" setting and/or ".xppcolors.json" files.
+ * style object, coming from the "xpp-ode.variables" setting and/or the "variables" object of
+ * ".xppsettings.json" files (formerly the "xpp-ode.identifierColors" setting and ".xppcolors.json").
  */
+import * as path from 'path';
 import { codeLines, codePart } from './lineUtils';
 import { parseXpp, DeclKind } from './xppModel';
 import { builtinFunctions, builtinConstants, specialFunctions } from './constants';
@@ -84,6 +86,16 @@ const BORDER_STYLES = new Set(['solid', 'dashed', 'dotted', 'double']);
 const CSS_LENGTH = /^\d+(\.\d+)?(px|em|rem|%)?$/;
 const HEX_MESSAGE = 'must be a hex colour (#rgb, #rrggbb or #rrggbbaa)';
 
+/** Per-folder settings file; its "variables" object holds the name, wildcard and group entries. */
+export const SETTINGS_FILE_NAME = '.xppsettings.json';
+/** Deprecated per-folder file holding the "variables" entries at its top level. */
+export const LEGACY_COLORS_FILE_NAME = '.xppcolors.json';
+export const VARIABLES_SETTING = 'xpp-ode.variables';
+/** Deprecated name of `VARIABLES_SETTING`. */
+export const LEGACY_COLORS_SETTING = 'xpp-ode.identifierColors';
+/** Key of the ".xppsettings.json" object holding the name, wildcard and group entries. */
+export const VARIABLES_KEY = 'variables';
+
 const GROUP_OF_KIND: Partial<Record<DeclKind, GroupName>> = {
     state: '@states', solv: '@states',
     parameter: '@parameters', derived: '@parameters',
@@ -107,17 +119,10 @@ export function parseColorConfig(raw: unknown, source = 'settings'): ColorConfig
         return { styles, wildcards, groups, errors };
     }
     for (const [name, value] of Object.entries(raw as Record<string, unknown>)) {
-        const kind = name.startsWith('@') ? 'group' : name.includes('*') ? 'wildcard' : 'name';
-        if (kind === 'group' && !(GROUP_NAMES as readonly string[]).includes(name.toLowerCase())) {
-            errors.push(`${source}: "${name}" is not a known group (expected one of ${GROUP_NAMES.join(', ')})`);
-            continue;
-        }
-        if (kind === 'wildcard' && !WILDCARD.test(name)) {
-            errors.push(`${source}: "${name}" is not a valid wildcard (letters, digits, "_" and "*" only, e.g. "v_*")`);
-            continue;
-        }
-        if (kind === 'name' && !IDENTIFIER.test(name)) {
-            errors.push(`${source}: "${name}" is not a valid identifier name`);
+        const kind = keyKind(name);
+        const keyError = keyErrorFor(name, kind);
+        if (keyError) {
+            errors.push(`${source}: ${keyError}`);
             continue;
         }
         const style = toStyle(value);
@@ -131,6 +136,101 @@ export function parseColorConfig(raw: unknown, source = 'settings'): ColorConfig
         else styles.set(lower, style);
     }
     return { styles, wildcards, groups, errors };
+}
+
+type KeyKind = 'group' | 'wildcard' | 'name';
+
+function keyKind(name: string): KeyKind {
+    return name.startsWith('@') ? 'group' : name.includes('*') ? 'wildcard' : 'name';
+}
+
+/** Why `name` cannot be a key of a variables map, or undefined when it can. */
+function keyErrorFor(name: string, kind: KeyKind): string | undefined {
+    if (kind === 'group' && !(GROUP_NAMES as readonly string[]).includes(name.toLowerCase())) {
+        return `"${name}" is not a known group (expected one of ${GROUP_NAMES.join(', ')})`;
+    }
+    if (kind === 'wildcard' && !WILDCARD.test(name)) {
+        return `"${name}" is not a valid wildcard (letters, digits, "_" and "*" only, e.g. "v_*")`;
+    }
+    if (kind === 'name' && !IDENTIFIER.test(name)) return `"${name}" is not a valid identifier name`;
+    return undefined;
+}
+
+/**
+ * Validates the contents of a ".xppsettings.json" file: an object whose "variables" key holds
+ * what `parseColorConfig` accepts. Other keys are reported and skipped.
+ */
+export function parseSettingsFile(raw: unknown, source: string): ColorConfig {
+    if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
+        return { ...emptyConfig(), errors: [`${source}: expected an object with a "${VARIABLES_KEY}" key`] };
+    }
+    const entries = raw as Record<string, unknown>;
+    const config = parseColorConfig(entries[VARIABLES_KEY], `${source}: "${VARIABLES_KEY}"`);
+    for (const key of Object.keys(entries)) {
+        if (key === VARIABLES_KEY) continue;
+        config.errors.push(keyErrorFor(key, keyKind(key)) === undefined
+            ? `${source}: "${key}" is not a known setting; put name, wildcard and @group entries under "${VARIABLES_KEY}"`
+            : `${source}: "${key}" is not a known setting (expected "${VARIABLES_KEY}")`);
+    }
+    return config;
+}
+
+/**
+ * Parses a configuration file by its name: ".xppsettings.json", or the deprecated flat
+ * ".xppcolors.json", which also yields a deprecation warning.
+ */
+export function parseConfigFile(file: string, raw: unknown): ColorConfig {
+    if (path.basename(file) !== LEGACY_COLORS_FILE_NAME) return parseSettingsFile(raw, file);
+    const config = parseColorConfig(raw, file);
+    config.errors.unshift(
+        `${file}: "${LEGACY_COLORS_FILE_NAME}" is deprecated; move its entries under "${VARIABLES_KEY}" in a "${SETTINGS_FILE_NAME}" file`
+    );
+    return config;
+}
+
+/**
+ * The configuration from the settings: the deprecated `LEGACY_COLORS_SETTING` value first, so that
+ * `VARIABLES_SETTING` wins key by key, plus a deprecation warning when the old one is used.
+ */
+export function parseSettingValues(variables: unknown, legacy: unknown): ColorConfig {
+    const legacyConfig = parseColorConfig(legacy, `setting "${LEGACY_COLORS_SETTING}"`);
+    if (!isEmptySetting(legacy)) {
+        legacyConfig.errors.unshift(`setting "${LEGACY_COLORS_SETTING}" is deprecated; use "${VARIABLES_SETTING}"`);
+    }
+    return mergeColorConfigs(legacyConfig, parseColorConfig(variables, `setting "${VARIABLES_SETTING}"`));
+}
+
+/** VS Code reports an unset object setting as its default, `{}`. */
+function isEmptySetting(value: unknown): boolean {
+    return value === undefined || value === null
+        || (typeof value === 'object' && !Array.isArray(value) && Object.keys(value).length === 0);
+}
+
+/**
+ * Configuration files that apply to a document in `documentDir`, in the order they apply: from
+ * `workspaceRoot` down to `documentDir`, and in each folder the legacy file before the new one so
+ * that the new one wins. Outside a workspace only the document's own folder is consulted.
+ */
+export function configFilesFor(
+    documentDir: string, workspaceRoot: string | undefined, exists: (file: string) => boolean
+): string[] {
+    const folders: string[] = [];
+    let dir = documentDir;
+    for (let depth = 0; depth < 32; depth++) {
+        folders.push(dir);
+        if (!workspaceRoot || path.relative(workspaceRoot, dir) === '') break;
+        const parent = path.dirname(dir);
+        if (parent === dir) break;
+        dir = parent;
+    }
+    return folders.reverse().flatMap(folder =>
+        [LEGACY_COLORS_FILE_NAME, SETTINGS_FILE_NAME].map(name => path.join(folder, name)).filter(exists)
+    );
+}
+
+/** A configuration with no entries. */
+export function emptyConfig(): ColorConfig {
+    return { styles: new Map(), wildcards: [], groups: new Map(), errors: [] };
 }
 
 function wildcardToRegex(pattern: string): RegExp {

@@ -22,4 +22,10 @@ suite('Colour picker support', () => {
         assert.deepStrictEqual(found.map(m => [m.line, m.start]), [[2, 38], [2, 65]]);
         assert.deepStrictEqual(findHexColors('{ "a": "#fff" }', 'xpp-ode.identifierColors'), []);
     });
+
+    test('in settings.json finds the colours under xpp-ode.variables', () => {
+        const text = '{\n  "xpp-ode.variables": { "v": "#ff5555" },\n  "xpp-ode.identifierColors": { "w": "#00ff00" }\n}';
+        assert.deepStrictEqual(findHexColors(text, 'xpp-ode.variables').map(m => [m.line, m.start]), [[1, 31]]);
+        assert.deepStrictEqual(findHexColors(text, 'xpp-ode.identifierColors').map(m => [m.line, m.start]), [[2, 38]]);
+    });
 });

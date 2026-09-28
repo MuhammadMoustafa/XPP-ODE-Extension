@@ -348,7 +348,7 @@ export function formatDescriptionHover(input: {
         `**${input.name}** — ${input.kindLabel}`,
         ...input.entries.map(e => describe(e, `line ${e.line + 1}`)),
         ...(input.includedEntries ?? []).flatMap(inc => inc.entries.map(e => describe(e, `${inc.file}, line ${e.line + 1}`))),
-        ...input.configDescriptions.map(d => `${d.text} (.xppcolors.json: ${d.key})`),
+        ...input.configDescriptions.map(d => `${d.text} (.xppsettings.json: ${d.key})`),
     ].join('\n\n');
 }
 

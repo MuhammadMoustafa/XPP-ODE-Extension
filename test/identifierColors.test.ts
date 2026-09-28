@@ -1,5 +1,9 @@
 import * as assert from 'assert';
-import { parseColorConfig, mergeColorConfigs, findIdentifierRanges, styleKey, collectStyledRanges, configDescriptionsFor } from '../src/utils/identifierColorsCore';
+import * as path from 'path';
+import {
+    parseColorConfig, mergeColorConfigs, findIdentifierRanges, styleKey, collectStyledRanges, configDescriptionsFor,
+    parseSettingsFile, parseConfigFile, parseSettingValues, configFilesFor, LEGACY_COLORS_FILE_NAME, SETTINGS_FILE_NAME,
+} from '../src/utils/identifierColorsCore';
 
 suite('Identifier colours', () => {
     suite('parseColorConfig', () => {
@@ -72,6 +76,85 @@ suite('Identifier colours', () => {
             assert.deepStrictEqual(merged.styles.get('x'), { color: '#111', description: 'child' });
             assert.deepStrictEqual(merged.styles.get('y'), { color: '#444', description: 'child' });
             assert.deepStrictEqual(merged.groups.get('@states'), { fontWeight: 'bold' });
+        });
+    });
+
+    suite('parseSettingsFile', () => {
+        test('reads the entries under "variables"', () => {
+            const config = parseSettingsFile({ variables: { x: '#111', '@states': { fontWeight: 'bold' }, 'v_*': '#222' } }, 'f');
+            assert.deepStrictEqual(config.errors, []);
+            assert.deepStrictEqual([...config.styles.entries()], [['x', { color: '#111' }]]);
+            assert.deepStrictEqual([...config.groups.keys()], ['@states']);
+            assert.deepStrictEqual(config.wildcards.map(w => w.pattern), ['v_*']);
+            assert.deepStrictEqual(parseSettingsFile({}, 'f').errors, []);
+        });
+
+        test('rejects a top level that is not an object', () => {
+            for (const raw of [null, [], 'x', 3]) {
+                const config = parseSettingsFile(raw, 'f');
+                assert.deepStrictEqual(config.errors, ['f: expected an object with a "variables" key']);
+                assert.strictEqual(config.styles.size, 0);
+            }
+        });
+
+        test('reports unknown keys and still applies "variables"', () => {
+            const config = parseSettingsFile({ 'x y': 1, variables: { a: '#fff' } }, 'f');
+            assert.deepStrictEqual(config.errors, ['f: "x y" is not a known setting (expected "variables")']);
+            assert.deepStrictEqual([...config.styles.keys()], ['a']);
+        });
+
+        test('points old flat entries to "variables"', () => {
+            const config = parseSettingsFile({ gsyn: '#fff', '@states': '#000', 'v_*': '#111' }, 'f');
+            assert.strictEqual(config.errors.length, 3);
+            assert.ok(config.errors.every(e => e.endsWith('put name, wildcard and @group entries under "variables"')), config.errors.join('\n'));
+            assert.strictEqual(config.styles.size + config.groups.size + config.wildcards.length, 0);
+        });
+
+        test('reports a bad "variables" value and bad entries inside it', () => {
+            assert.deepStrictEqual(parseSettingsFile({ variables: '#fff' }, 'f').errors,
+                ['f: "variables": expected an object mapping identifier names to colours']);
+            const config = parseSettingsFile({ variables: { a: 'red', b: '#fff' } }, 'f');
+            assert.deepStrictEqual([...config.styles.keys()], ['b']);
+            assert.deepStrictEqual(config.errors.length, 1);
+            assert.ok(config.errors[0].startsWith('f: "variables": "a":'), config.errors[0]);
+        });
+    });
+
+    suite('legacy configuration', () => {
+        const legacyFile = path.join('proj', LEGACY_COLORS_FILE_NAME);
+        const settingsFile = path.join('proj', SETTINGS_FILE_NAME);
+
+        test('.xppcolors.json is read flat, with a deprecation warning', () => {
+            const config = parseConfigFile(legacyFile, { x: '#111' });
+            assert.deepStrictEqual([...config.styles.keys()], ['x']);
+            assert.deepStrictEqual(config.errors, [
+                `${legacyFile}: ".xppcolors.json" is deprecated; move its entries under "variables" in a ".xppsettings.json" file`,
+            ]);
+            assert.deepStrictEqual(parseConfigFile(settingsFile, { variables: { x: '#111' } }).errors, []);
+        });
+
+        test('in one folder .xppsettings.json applies after .xppcolors.json', () => {
+            const root = 'ws';
+            const sub = path.join(root, 'models');
+            const present = new Set([path.join(root, SETTINGS_FILE_NAME), path.join(sub, SETTINGS_FILE_NAME), path.join(sub, LEGACY_COLORS_FILE_NAME)]);
+            assert.deepStrictEqual(configFilesFor(sub, root, f => present.has(f)), [
+                path.join(root, SETTINGS_FILE_NAME), path.join(sub, LEGACY_COLORS_FILE_NAME), path.join(sub, SETTINGS_FILE_NAME),
+            ]);
+            assert.deepStrictEqual(configFilesFor(sub, undefined, f => present.has(f)),
+                [path.join(sub, LEGACY_COLORS_FILE_NAME), path.join(sub, SETTINGS_FILE_NAME)]);
+
+            const merged = mergeColorConfigs(
+                parseConfigFile(legacyFile, { x: '#111', y: '#222' }),
+                parseConfigFile(settingsFile, { variables: { x: '#333' } }));
+            assert.deepStrictEqual([...merged.styles.entries()], [['x', { color: '#333' }], ['y', { color: '#222' }]]);
+        });
+
+        test('xpp-ode.variables wins over xpp-ode.identifierColors, which is deprecated when used', () => {
+            const merged = parseSettingValues({ x: '#333' }, { x: '#111', y: '#222' });
+            assert.deepStrictEqual([...merged.styles.entries()], [['x', { color: '#333' }], ['y', { color: '#222' }]]);
+            assert.deepStrictEqual(merged.errors, ['setting "xpp-ode.identifierColors" is deprecated; use "xpp-ode.variables"']);
+            assert.deepStrictEqual(parseSettingValues({ x: '#333' }, {}).errors, []);
+            assert.deepStrictEqual(parseSettingValues(undefined, undefined).errors, []);
         });
     });
 

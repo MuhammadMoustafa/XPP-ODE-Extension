@@ -13,10 +13,11 @@ import { RunOdeFileProvider } from './providers/RunOdeFileProvider';
 import { ExtractVariableProvider } from './providers/extractVariableProvider';
 import { IdentifierColorProvider } from './providers/identifierColorProvider';
 import { XppColorPickerProvider } from './providers/colorPickerProvider';
-import { ColorsFileCompletionProvider } from './providers/colorsFileCompletionProvider';
+import { SettingsFileCompletionProvider } from './providers/settingsFileCompletionProvider';
 import { OperatorHoverProvider } from './providers/operatorHoverProvider';
 import { DescriptionHoverProvider } from './providers/descriptionHoverProvider';
 import { DescriptionQuickFixProvider } from './providers/descriptionQuickFixProvider';
+import { OperatorQuickFixProvider } from './providers/operatorQuickFixProvider';
 
 const XPP_SELECTOR: vscode.DocumentSelector = { scheme: 'file', language: XPP_LANGUAGE_ID };
 
@@ -33,7 +34,7 @@ export function activate(context: vscode.ExtensionContext) {
         diagnosticManager,
         new IdentifierColorProvider(),
         ...XppColorPickerProvider.register(),
-        ColorsFileCompletionProvider.register(),
+        SettingsFileCompletionProvider.register(),
         vscode.workspace.onDidSaveTextDocument((document) => {
             if (isXppDocument(document)) {
                 diagnosticManager.checkFile(document);
@@ -58,6 +59,9 @@ export function activate(context: vscode.ExtensionContext) {
         vscode.languages.registerHoverProvider(XPP_SELECTOR, new DescriptionHoverProvider()),
         vscode.languages.registerCodeActionsProvider(XPP_SELECTOR, new DescriptionQuickFixProvider(), {
             providedCodeActionKinds: DescriptionQuickFixProvider.providedCodeActionKinds,
+        }),
+        vscode.languages.registerCodeActionsProvider(XPP_SELECTOR, new OperatorQuickFixProvider(), {
+            providedCodeActionKinds: OperatorQuickFixProvider.providedCodeActionKinds,
         }),
         vscode.workspace.onDidChangeConfiguration((event) => {
             if (OPERATOR_SETTINGS.some((setting) => event.affectsConfiguration(setting))) {

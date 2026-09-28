@@ -3,18 +3,19 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { isXppDocument } from '../utils/constants';
 import {
-    ColorConfig, IdentifierStyle, ThemeStyle, collectStyledRanges, mergeColorConfigs, parseColorConfig,
+    ColorConfig, IdentifierStyle, ThemeStyle, collectStyledRanges, configFilesFor, emptyConfig, mergeColorConfigs,
+    parseConfigFile, parseSettingValues,
+    LEGACY_COLORS_FILE_NAME, LEGACY_COLORS_SETTING, SETTINGS_FILE_NAME, VARIABLES_SETTING,
 } from '../utils/identifierColorsCore';
 
-export const COLORS_FILE_NAME = '.xppcolors.json';
-const SETTING_KEY = 'xpp-ode.identifierColors';
 const DEFAULT_DEBOUNCE_MS = 300;
 
 /**
  * Paints user-chosen colours on identifiers in every visible XPP editor.
- * Colours come from the "xpp-ode.identifierColors" setting (user or workspace) and from
- * ".xppcolors.json" files: every such file between the workspace root and the document's folder
- * applies, the closest one winning, so one file can colour a whole project folder.
+ * Colours come from the "xpp-ode.variables" setting (user or workspace) and from the "variables"
+ * object of ".xppsettings.json" files: every such file between the workspace root and the
+ * document's folder applies, the closest one winning, so one file can colour a whole project
+ * folder. The deprecated "xpp-ode.identifierColors" setting and ".xppcolors.json" files still apply.
  */
 export class IdentifierColorProvider implements vscode.Disposable {
     private decorationTypes = new Map<string, vscode.TextEditorDecorationType>();
@@ -23,14 +24,16 @@ export class IdentifierColorProvider implements vscode.Disposable {
     private disposables: vscode.Disposable[] = [];
 
     constructor() {
-        const watcher = vscode.workspace.createFileSystemWatcher(`**/${COLORS_FILE_NAME}`);
+        const watcher = vscode.workspace.createFileSystemWatcher(`**/{${SETTINGS_FILE_NAME},${LEGACY_COLORS_FILE_NAME}}`);
         this.disposables.push(
             watcher,
             watcher.onDidChange(() => this.resetAndRefresh()),
             watcher.onDidCreate(() => this.resetAndRefresh()),
             watcher.onDidDelete(() => this.resetAndRefresh()),
             vscode.workspace.onDidChangeConfiguration((event) => {
-                if (event.affectsConfiguration(SETTING_KEY)) this.resetAndRefresh();
+                if ([VARIABLES_SETTING, LEGACY_COLORS_SETTING].some(key => event.affectsConfiguration(key))) {
+                    this.resetAndRefresh();
+                }
             }),
             vscode.window.onDidChangeVisibleTextEditors(() => this.refreshAll()),
             vscode.workspace.onDidChangeTextDocument((event) => {
@@ -108,40 +111,24 @@ export class IdentifierColorProvider implements vscode.Disposable {
         });
     }
 
-    /** Settings first, then every colours file from the workspace root down to the document folder. */
+    /** Settings first, then every configuration file from the workspace root down to the document folder. */
     public static loadConfig(document: vscode.TextDocument): ColorConfig {
-        const raw = vscode.workspace.getConfiguration('xpp-ode', document).get<unknown>('identifierColors');
-        const configs = [parseColorConfig(raw, `setting "${SETTING_KEY}"`)];
+        const settings = vscode.workspace.getConfiguration(undefined, document);
+        const configs = [parseSettingValues(settings.get<unknown>(VARIABLES_SETTING), settings.get<unknown>(LEGACY_COLORS_SETTING))];
         if (document.uri.scheme === 'file') {
-            for (const file of IdentifierColorProvider.colorFilesFor(document)) {
-                configs.push(IdentifierColorProvider.readColorsFile(file));
+            const workspaceRoot = vscode.workspace.getWorkspaceFolder(document.uri)?.uri.fsPath;
+            for (const file of configFilesFor(path.dirname(document.uri.fsPath), workspaceRoot, fs.existsSync)) {
+                configs.push(IdentifierColorProvider.readConfigFile(file));
             }
         }
         return mergeColorConfigs(...configs);
     }
 
-    /** Colour files that apply to this document, outermost first. */
-    private static colorFilesFor(document: vscode.TextDocument): string[] {
-        const workspaceRoot = vscode.workspace.getWorkspaceFolder(document.uri)?.uri.fsPath;
-        const files: string[] = [];
-        let dir = path.dirname(document.uri.fsPath);
-        for (let depth = 0; depth < 32; depth++) {
-            const candidate = path.join(dir, COLORS_FILE_NAME);
-            if (fs.existsSync(candidate)) files.push(candidate);
-            // Outside a workspace folder only the document's own folder is consulted.
-            if (!workspaceRoot || path.relative(workspaceRoot, dir) === '') break;
-            const parent = path.dirname(dir);
-            if (parent === dir) break;
-            dir = parent;
-        }
-        return files.reverse();
-    }
-
-    private static readColorsFile(file: string): ColorConfig {
+    private static readConfigFile(file: string): ColorConfig {
         try {
-            return parseColorConfig(JSON.parse(fs.readFileSync(file, 'utf8')), file);
+            return parseConfigFile(file, JSON.parse(fs.readFileSync(file, 'utf8')));
         } catch (error) {
-            return { styles: new Map(), wildcards: [], groups: new Map(), errors: [`${file}: ${(error as Error).message}`] };
+            return { ...emptyConfig(), errors: [`${file}: ${(error as Error).message}`] };
         }
     }
 

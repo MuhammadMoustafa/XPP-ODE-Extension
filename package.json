@@ -148,16 +148,33 @@
 					"default": "warning",
 					"markdownDescription": "How to report a comparison standing next to arithmetic. Comparisons have priority 7 and every arithmetic operator 4 or 6, so XPP evaluates the comparison first and applies the arithmetic to its 0 or 1 result: `2*3<4` is `2*(3<4)` = 2 and not 0, `3-1<2` is `3-(1<2)` = 2 and not 0, `1+2<3+4` is `1+(2<3)+4` = 6 and not 1, and `1/2<1` is `1/(2<1)`, a division by zero. A leading sign is the same rule: `-1<0` is `-(1<0)` = -0, which is **false**, and `-1>=0` is `-(1>=0)` = -1, which is **true**. All of these silently flip the branch an `if` takes, so they are reported as warnings. Bracket what you want compared: `(2*3)<4`."
 				},
+				"xpp-ode.precedence.logical": {
+					"type": "string",
+					"enum": [
+						"warning",
+						"information",
+						"hint",
+						"off"
+					],
+					"enumDescriptions": [
+						"Show as a warning",
+						"Show as an information message",
+						"Show only as a faint hint (not listed in the Problems panel)",
+						"Do not report this at all"
+					],
+					"default": "warning",
+					"markdownDescription": "How to report `&` or `|` standing next to arithmetic. `&` has priority 6 like `*` and `/`, and `|` priority 4 like `+` and `-`, so XPP does not finish the arithmetic first: `1+1&1` is `1+(1&1)` = 2 and not 1, `a&b*c` is `(a&b)*c`, and `a|b-c` is `(a|b)-c`. Only groupings that differ from the usual reading are reported; `a*b&c` and `a+b|c` mean what they look like. Bracket the operands: `(a+b)&c`."
+				},
 				"xpp-ode.debounceDelay": {
 					"type": "number",
 					"default": 300,
 					"minimum": 0,
 					"description": "Delay in milliseconds before updating diagnostics after text changes."
 				},
-				"xpp-ode.identifierColors": {
+				"xpp-ode.variables": {
 					"type": "object",
 					"default": {},
-					"markdownDescription": "Colours and styles for specific variables, parameters or functions, independent of the theme. Keys are XPP names (case-insensitive) or a category: `@states`, `@parameters`, `@fixed`, `@functions`, `@aux`, `@wiener`, `@markov`, `@tables`, `@options`, `@builtins`, `@keywords`. Values are a hex colour (`\"#ff8800\"`) or a style object with any of `color`, `backgroundColor`, `fontWeight`, `fontStyle`, `textDecoration`, `opacity`, `borderColor`, `borderStyle`, `borderWidth`, `borderRadius`, plus optional `light` / `dark` objects with theme-specific overrides, and a `description` shown when hovering the name. Put the setting in a workspace `.vscode/settings.json`, or create a `.xppcolors.json` file with the same content in a folder, to style every `.ode`/`.inc` file in that folder.",
+					"markdownDescription": "Colours and styles for specific variables, parameters or functions, independent of the theme. Keys are XPP names (case-insensitive) or a category: `@states`, `@parameters`, `@fixed`, `@functions`, `@aux`, `@wiener`, `@markov`, `@tables`, `@options`, `@builtins`, `@keywords`. Values are a hex colour (`\"#ff8800\"`) or a style object with any of `color`, `backgroundColor`, `fontWeight`, `fontStyle`, `textDecoration`, `opacity`, `borderColor`, `borderStyle`, `borderWidth`, `borderRadius`, plus optional `light` / `dark` objects with theme-specific overrides, and a `description` shown when hovering the name. Put the setting in a workspace `.vscode/settings.json`, or put the same content under `\"variables\"` in a `.xppsettings.json` file in a folder, to style every `.ode`/`.inc` file in that folder.",
 					"additionalProperties": {
 						"anyOf": [
 							{
@@ -516,10 +533,20 @@
 					"propertyNames": {
 						"pattern": "^(@[a-z]+|[A-Za-z0-9_*]+)$"
 					}
+				},
+				"xpp-ode.identifierColors": {
+					"type": "object",
+					"default": {},
+					"markdownDescription": "Deprecated name of `#xpp-ode.variables#`; still read, but `#xpp-ode.variables#` wins for the same key.",
+					"markdownDeprecationMessage": "Renamed to `#xpp-ode.variables#`: move these entries there."
 				}
 			}
 		},
 		"jsonValidation": [
+			{
+				"fileMatch": ".xppsettings.json",
+				"url": "./schemas/xppsettings.schema.json"
+			},
 			{
 				"fileMatch": ".xppcolors.json",
 				"url": "./schemas/xppcolors.schema.json"

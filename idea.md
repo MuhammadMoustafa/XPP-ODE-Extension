@@ -21,11 +21,12 @@ Two sources, both optional:
 1. **The model itself**: the comment on the declaration line, or the comment lines right above it.
    `par gna=120  # Maximal sodium conductance (mS/cm^2)`. Zero configuration, and the text travels
    with the `.ode` file like a docstring. Works across `#include`d files.
-2. **`.xppcolors.json` / `xpp-ode.identifierColors`**: a `description` property in the style
+2. **`.xppsettings.json` `"variables"` / `xpp-ode.variables`** (formerly `.xppcolors.json` /
+   `xpp-ode.identifierColors`): a `description` property in the style
    object, for folders of models that share names, or files the user cannot edit.
    `"gna": { "color": "#7ee787", "description": "Maximal sodium conductance (mS/cm^2)" }`.
    A string value stays a colour; an object may hold only `description`. Keeps one entry per
-   name and reuses the key resolution; the file name is a misnomer but still fine.
+   name and reuses the key resolution; the rename to `.xppsettings.json` fixed the misnomer.
 
 Resolution, same rules as colours (exact > wildcard, last listed > group), but applied to
 `description` on its own: a name's colour entry without a `description` does not hide a wildcard's

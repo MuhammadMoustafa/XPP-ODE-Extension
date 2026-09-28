@@ -7,7 +7,8 @@ export interface SemanticResult {
     start: number;
     end: number;
     severity: 'error' | 'warning' | 'information';
-    type: 'undefined' | 'unused' | 'init-target' | 'ignored-line' | 'keyword-name' | 'option' | 'option-value' | 'syntax';
+    type: 'undefined' | 'unused' | 'init-target' | 'ignored-line' | 'keyword-name' | 'option' | 'option-value' | 'syntax'
+        | 'init-value' | 'initcond-formula';
     /** Render the range faded (VS Code "unnecessary" tag). */
     unnecessary?: boolean;
 }
@@ -100,6 +101,8 @@ export function checkSemantics(
         }
     }
 
+    results.push(...checkInitialValues(model));
+
     // Keyword-like names on fixed-variable lines: "p=1" is a variable, "p a=1" a declaration
     for (const decl of model.declarations) {
         if (decl.kind === 'fixed' && !decl.fromArray && isKeywordLikeName(decl.name)) {
@@ -158,19 +161,62 @@ const NUMERIC_OPTIONS = new Set(numericOptionNames);
 const PLAIN_NUMBER = /^[+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?$/;
 
 /**
- * XPP reads a numeric "@" option with `atof()`, which stops at the first character that cannot be
- * part of a number and never reports an error. So the option is set, silently, to whatever prefix
- * happened to parse: "@ total=2*3" is 2, not 6.
+ * What `atof()` makes of a value: the number it actually uses and a clause saying why. atof stops
+ * at the first character that cannot be part of a number and never reports an error, so "2*3" is
+ * 2 and "a" is 0.
  */
-function optionValueMessage(name: string, value: string): string {
+function atofReading(value: string): { used: string; hint: string } {
     const prefix = /^[+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?/.exec(value);
     const used = prefix ? prefix[0] : '0';
     const hint = prefix
         ? `XPP reads the value with "atof", which stops at "${value.substring(used.length)}"`
         : `XPP reads the value with "atof", which finds no number in "${value}"`;
+    return { used, hint };
+}
+
+/** A numeric "@" option is read with `atof()`: "@ total=2*3" is 2, not 6. */
+function optionValueMessage(name: string, value: string): string {
+    const { used, hint } = atofReading(value);
     return `Option "${name}" is silently set to ${used}, not "${value}". ${hint}, and reports nothing. ` +
         `"@" options take a plain number: they are not expressions, so "@ total=2*3" is 2, not 6. ` +
         `Work the value out yourself, or put it in a "par" and use that in your equations.`;
+}
+
+/**
+ * "init x=VALUE" and "x(0)=VALUE" are read with `atof()` too (xppautX core/form_ode.cpp):
+ * "init y=2*3" starts y at 2 and "init y=a" at 0. An "x(0)=" formula is not an error, since XPP
+ * keeps it as the history of x for delay equations, but x still starts at the atof value.
+ * An array's "x[1..9](0)=" is the exception: XPP evaluates it ("=a*[j]" works), so it is left alone.
+ */
+function checkInitialValues(model: XppModel): SemanticResult[] {
+    const hasDelays = model.expressions.some(e => /\bdelay\s*\(/i.test(e.text));
+    return model.initialValues
+        .filter(init => !(init.form === 'initcond' && init.name.includes('[')))
+        .filter(init => !PLAIN_NUMBER.test(init.value.replace(/\s+/g, '')))
+        .map(init => {
+            const value = init.value.replace(/\s+/g, '');
+            const { used, hint } = atofReading(value);
+            const span = { line: init.line, start: init.start, end: init.end };
+            if (init.form === 'init') {
+                return {
+                    ...span,
+                    message: `"${init.name}" silently starts at ${used}, not "${value}". ${hint}, and reports nothing. ` +
+                        `"init" takes a plain number: it is not an expression, so "init y=2*3" is 2, not 6. ` +
+                        `Work the value out yourself.`,
+                    severity: 'error',
+                    type: 'init-value',
+                };
+            }
+            return {
+                ...span,
+                message: `XPP starts "${init.name}" at ${used} here, not at "${value}": ${hint}. An initial condition ` +
+                    `is a plain number; a formula is only kept as the history of "${init.name}" for delay equations.` +
+                    (hasDelays ? '' : ' Work the value out yourself.'),
+                // With delays in the model, a formula here is likely meant as history.
+                severity: hasDelays ? 'information' : 'warning',
+                type: 'initcond-formula',
+            };
+        });
 }
 
 function capitalize(word: string): string {

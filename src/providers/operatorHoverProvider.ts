@@ -1,10 +1,13 @@
 import * as vscode from 'vscode';
 import { isCommentLine, isInComment } from '../utils/lineUtils';
-import { POWER_HOVER_MARKDOWN, COMPARISON_HOVER_MARKDOWN } from '../utils/operatorCheckerCore';
+import {
+    POWER_HOVER_MARKDOWN, COMPARISON_HOVER_MARKDOWN, LOGICAL_HOVER_MARKDOWN, UNSUPPORTED_HOVER_MARKDOWN,
+} from '../utils/operatorCheckerCore';
 
 /**
- * Explains the two operators of an `.ode` file that are most likely to be misread: "^", which
- * groups to the left, and the comparisons, which bind tighter than every arithmetic operator.
+ * Explains the operators of an `.ode` file that are most likely to be misread: "^", which groups
+ * to the left, the comparisons, which bind tighter than every arithmetic operator, "&" and "|",
+ * which sit among the arithmetic, and "!=", "&&" and "||", which XPP does not have at all.
  */
 export class OperatorHoverProvider implements vscode.HoverProvider {
     public provideHover(document: vscode.TextDocument, position: vscode.Position): vscode.Hover | undefined {
@@ -26,10 +29,14 @@ const OPERATORS: { text: string; markdown: string }[] = [
     { text: '<=', markdown: COMPARISON_HOVER_MARKDOWN },
     { text: '>=', markdown: COMPARISON_HOVER_MARKDOWN },
     { text: '==', markdown: COMPARISON_HOVER_MARKDOWN },
-    { text: '!=', markdown: COMPARISON_HOVER_MARKDOWN },
+    { text: '!=', markdown: UNSUPPORTED_HOVER_MARKDOWN },
+    { text: '&&', markdown: UNSUPPORTED_HOVER_MARKDOWN },
+    { text: '||', markdown: UNSUPPORTED_HOVER_MARKDOWN },
     { text: '^', markdown: POWER_HOVER_MARKDOWN },
     { text: '<', markdown: COMPARISON_HOVER_MARKDOWN },
     { text: '>', markdown: COMPARISON_HOVER_MARKDOWN },
+    { text: '&', markdown: LOGICAL_HOVER_MARKDOWN },
+    { text: '|', markdown: LOGICAL_HOVER_MARKDOWN },
 ];
 
 /** The operator covering `column`, or undefined. */

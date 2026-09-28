@@ -13,14 +13,16 @@ const SEVERITY: Record<Exclude<OperatorLevel, 'off'>, vscode.DiagnosticSeverity>
 };
 
 /**
- * The setting that controls each advisory finding. `unary-sign` has none: XPP refuses to load a
- * file containing it, so it is an error like the other things XPP rejects.
+ * The setting that controls each advisory finding. What XPP refuses to load (`unary-sign`,
+ * `unsupported-operator`, `if-syntax`) has none, and neither do `division-by-zero` and
+ * `if-trailing-operator`, which are always worth seeing.
  */
 const SETTING: Partial<Record<OperatorFinding, string>> = {
     'power-associativity': 'precedence.power',
     'unary-minus-power': 'precedence.power',
     'comparison-precedence': 'precedence.comparison',
     'chained-comparison': 'precedence.comparison',
+    'logical-precedence': 'precedence.logical',
 };
 
 export const OPERATOR_SETTINGS = [...new Set(Object.values(SETTING))].map(name => `xpp-ode.${name}`);

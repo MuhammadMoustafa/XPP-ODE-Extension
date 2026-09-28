@@ -192,6 +192,20 @@ suite('numeric "@" option values', () => {
         assert.deepStrictEqual(run('@ total=').map(r => r.type), ['option']);
     });
 
+    test('init values are read the same way', () => {
+        // Confirmed in xppautX: init y=2*3 starts y at 2, init y=a, exp(0) and a+1 at 0.
+        const inits = (text: string) => run(`${text}\nx'=-x\ny'=-y\ndone`).filter(r => r.type === 'init-value');
+        assert.deepStrictEqual(inits('init y=2*3').map(r => r.severity), ['error']);
+        assert.ok(inits('init y=2*3')[0].message.includes('silently starts at 2'), inits('init y=2*3')[0].message);
+        assert.ok(inits('init y=a')[0].message.includes('silently starts at 0'), inits('init y=a')[0].message);
+        assert.strictEqual(inits('i y=exp(0)').length, 1);
+        assert.strictEqual(inits('init x=1, y=a+1').length, 1);
+        assert.deepStrictEqual(inits('init x=1, y=a+1').map(r => [r.line, r.start, r.end]), [[0, 12, 15]]);
+        assert.deepStrictEqual(inits('init x=-5 y=1e-3'), []);
+        assert.deepStrictEqual(inits('init x=.5,y=+2'), []);
+        assert.deepStrictEqual(inits('init x'), []);
+    });
+
     test('options may be separated by spaces as well as commas', () => {
         // "@ bound=10000 meth=cvode dt=.05 total=100" sets all four, verified by running it.
         assert.deepStrictEqual(run('@ dt=.05 meth=cvode total=100'), []);
@@ -200,5 +214,41 @@ suite('numeric "@" option values', () => {
         // and every one of them is still checked
         assert.deepStrictEqual(run('@ dt=.05 nosuchopt=1').map(r => r.type), ['option']);
         assert.deepStrictEqual(run('@ dt=.05 total=2*3').map(r => r.type), ['option-value']);
+    });
+});
+
+suite('"x(0)=" initial conditions', () => {
+    // Confirmed in xppautX: with "par a=2", "y(0)=a" starts y at 0 and "y(0)=exp(0)" at 0, while
+    // "y(0)=2*3" starts it at 2. The formula is only kept as the history for delay equations.
+    const conditions = (text: string) => run(`par a=2\ny'=-y*a\n${text}\ndone`).filter(r => r.type === 'initcond-formula');
+
+    test('warns when the value is not a plain number', () => {
+        assert.deepStrictEqual(conditions('y(0)=a').map(r => [r.severity, r.line, r.start, r.end]), [['warning', 2, 5, 6]]);
+        assert.strictEqual(conditions('y(0)=exp(0)').length, 1);
+        assert.strictEqual(conditions('y(0)=2*3').length, 1);
+    });
+
+    test('says where the variable really starts', () => {
+        assert.ok(conditions('y(0)=a')[0].message.includes('starts "y" at 0'), conditions('y(0)=a')[0].message);
+        assert.ok(conditions('y(0)=2*3')[0].message.includes('starts "y" at 2'), conditions('y(0)=2*3')[0].message);
+        assert.ok(conditions('y(0)=a')[0].message.includes('delay'), conditions('y(0)=a')[0].message);
+    });
+
+    test('accepts plain numbers', () => {
+        assert.deepStrictEqual(conditions('y(0)=-5'), []);
+        assert.deepStrictEqual(conditions('y(0)=1e-3'), []);
+        assert.deepStrictEqual(conditions('y(0)= .5'), []);
+    });
+
+    // Confirmed in xppautX: "x[1..2](0)=a" starts both at 2, "x[1..2](0)=[j]*2" at 2 and 4, and
+    // "x[1..2](0)=ran(1)" at random values: an array's condition is a real formula.
+    test('leaves array initial conditions alone, which XPP evaluates', () => {
+        const results = run("par a=2\nx[1..2]'=0\nx[1..2](0)=a*[j]\ndone").filter(r => r.type === 'initcond-formula');
+        assert.deepStrictEqual(results, []);
+    });
+
+    test('is only information when the model has delays, where a formula is legitimate history', () => {
+        const results = run("par a=2\ny'=-delay(y,1)\ny(0)=a*t\ndone").filter(r => r.type === 'initcond-formula');
+        assert.deepStrictEqual(results.map(r => r.severity), ['information']);
     });
 });

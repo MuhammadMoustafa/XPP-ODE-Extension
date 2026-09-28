@@ -25,6 +25,7 @@ export class SemanticChecker {
             const range = new vscode.Range(res.line, res.start, res.line, res.end);
             const diagnostic = new vscode.Diagnostic(range, res.message, SEVERITY[res.severity]);
             diagnostic.code = res.type;
+            diagnostic.source = 'xpp';
             if (res.unnecessary) {
                 diagnostic.tags = [vscode.DiagnosticTag.Unnecessary];
             }

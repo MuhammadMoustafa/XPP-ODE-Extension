@@ -30,3 +30,11 @@ ode/**
 
 # Open in XPP Interactive front end, hidden until 0.5.0
 media/**
+
+# demo recorder (scripts, models, recordings)
+demo/**
+.claude/**
+.github/**
+# demo media: the README links them from GitHub
+images/*.gif
+images/*.mp4

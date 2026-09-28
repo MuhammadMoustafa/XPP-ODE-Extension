@@ -278,7 +278,7 @@ suite('Descriptions', () => {
         test('config descriptions follow the comment entries with their key', () => {
             const c = hover.indexOf('from settings');
             assert.ok(c > hover.indexOf('all cells'), hover);
-            assert.ok(hover.indexOf('(.xppcolors.json: x*)') > c, hover);
+            assert.ok(hover.indexOf('(.xppsettings.json: x*)') > c, hover);
         });
     });
 });

@@ -31,7 +31,7 @@ export function rgbaToHex(red: number, green: number, blue: number, alpha: numbe
 }
 
 /**
- * Finds every hex colour string in `text`. When `onlyUnderKey` is given (e.g. "xpp-ode.identifierColors"),
+ * Finds every hex colour string in `text`. When `onlyUnderKey` is given (e.g. "xpp-ode.variables"),
  * only strings inside the JSON object that follows that key are returned, so that a settings.json
  * only gets swatches in the extension's own section.
  */

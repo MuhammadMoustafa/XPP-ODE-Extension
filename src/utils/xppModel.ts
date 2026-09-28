@@ -45,6 +45,16 @@ export interface Declaration extends TextSpan {
     parameters?: string[];
 }
 
+/**
+ * The value given to a variable by "init x=VALUE" or "x(0)=VALUE", with the span of the value.
+ * XPP reads both as a plain number, so anything else is a mistake (see semanticCheckerCore).
+ */
+export interface InitialValue extends TextSpan {
+    name: string;
+    value: string;
+    form: 'init' | 'initcond';
+}
+
 export interface Reference extends TextSpan {
     name: string;
     nameLower: string;
@@ -89,6 +99,7 @@ export interface XppModel {
     declarations: Declaration[];
     references: Reference[];
     options: OptionEntry[];
+    initialValues: InitialValue[];
     /** Expression right-hand sides, for checks that need the text rather than the names in it. */
     expressions: ExpressionSegment[];
     /** Files named on "#include" lines. */
@@ -186,6 +197,7 @@ export function parseXpp(text: string): XppModel {
     const declarations: Declaration[] = [];
     const references: Reference[] = [];
     const options: OptionEntry[] = [];
+    const initialValues: InitialValue[] = [];
     const expressions: ExpressionSegment[] = [];
     const includes: { path: string; line: number }[] = [];
     let arrayBlockRange: [number, number] | undefined;
@@ -319,10 +331,11 @@ export function parseXpp(text: string): XppModel {
                     });
                     break;
                 case 'init':
-                    forEachNameValue(rest, restStart, (name, nameStart) => {
+                    forEachNameValue(rest, restStart, (name, nameStart, value, valueStart) => {
                         const expanded = expandArrayName(name, arrayBlockRange);
                         const target = expanded ? expanded.base : name;
                         references.push({ name: target, nameLower: target.toLowerCase(), role: 'init', ...span(nameStart, nameStart + target.length) });
+                        if (value) initialValues.push({ name, value, form: 'init', ...span(valueStart, valueStart + value.length) });
                     });
                     break;
                 case 'aux': {
@@ -434,6 +447,9 @@ export function parseXpp(text: string): XppModel {
                 const expanded = expandArrayName(m[1], arrayBlockRange);
                 const target = expanded ? expanded.base : m[1];
                 references.push({ name: target, nameLower: target.toLowerCase(), role: 'init', ...span(nameStart, nameStart + target.length) });
+                const valueStart = indent + m[0].length + body.substring(m[0].length).search(/\S|$/);
+                const value = text.substring(valueStart).trimEnd();
+                if (value) initialValues.push({ name: m[1], value, form: 'initcond', ...span(valueStart, valueStart + value.length) });
             }
             addRefs(indent + m[0].length, text.length);
             break;
@@ -466,19 +482,24 @@ export function parseXpp(text: string): XppModel {
         info.kind = 'ignored';
     }
 
-    return { lines: rawLines, lineInfos, declarations, references, options, expressions, includes };
+    return { lines: rawLines, lineInfos, declarations, references, options, initialValues, expressions, includes };
 }
 
 /**
- * Calls `fn(name, nameStart)` for every "name=value" pair in a par/init list. XPP accepts commas
- * or plain spaces between the pairs, and tolerates spaces around "=".
+ * Calls `fn(name, nameStart, value, valueStart)` for every "name=value" pair in a par/init list.
+ * XPP accepts commas or plain spaces between the pairs, and tolerates spaces around "=".
  */
-function forEachNameValue(text: string, offset: number, fn: (name: string, nameStart: number) => void): void {
-    // a bare name ("par ind") is allowed too: XPP gives it the value 0
-    const pairRegex = new RegExp(`(${IDENT}${ARRAY_SUFFIX})(?:\\s*=\\s*[^,\\s]*)?`, 'g');
+function forEachNameValue(
+    text: string,
+    offset: number,
+    fn: (name: string, nameStart: number, value: string, valueStart: number) => void
+): void {
+    // a bare name ("par ind") is allowed too: XPP gives it the value 0, and `value` is ""
+    const pairRegex = new RegExp(`(${IDENT}${ARRAY_SUFFIX})(?:\\s*=\\s*([^,\\s]*))?`, 'g');
     let m;
     while ((m = pairRegex.exec(text)) !== null) {
-        fn(m[1], offset + m.index);
+        const value = m[2] ?? '';
+        fn(m[1], offset + m.index, value, offset + m.index + m[0].length - value.length);
     }
 }
 

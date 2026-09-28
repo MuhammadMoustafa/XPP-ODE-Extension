@@ -2,28 +2,53 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import { parseXpp } from '../utils/xppModel';
 import { collectDescriptions, KIND_LABELS } from '../utils/descriptionsCore';
-import { GROUP_NAMES } from '../utils/identifierColorsCore';
-import { COLORS_FILE_NAME } from './identifierColorProvider';
+import { GROUP_NAMES, LEGACY_COLORS_FILE_NAME, SETTINGS_FILE_NAME, VARIABLES_KEY } from '../utils/identifierColorsCore';
+import { keyPathAt } from '../utils/jsonKeyPathCore';
 
 const MAX_FILES = 200;
 
 /**
- * Suggests keys while editing ".xppcolors.json": the "@group" names and every name declared
- * in the .ode/.inc files of the folder (and its subfolders), with the description written in their
- * comments, so names need not be typed from memory.
+ * Suggests keys while editing ".xppsettings.json": "variables" at the top level, and inside it the
+ * "@group" names and every name declared in the .ode/.inc files of the folder (and its subfolders),
+ * with the description written in their comments, so names need not be typed from memory.
+ * In the deprecated ".xppcolors.json" the names are offered at the top level.
  * Value completion (style properties such as "description", enums, hex colours) comes from the JSON schema.
  */
-export class ColorsFileCompletionProvider implements vscode.CompletionItemProvider {
+export class SettingsFileCompletionProvider implements vscode.CompletionItemProvider {
     static register(): vscode.Disposable {
         return vscode.languages.registerCompletionItemProvider(
-            { pattern: `**/${COLORS_FILE_NAME}` }, new ColorsFileCompletionProvider(), '"', '@'
+            { pattern: `**/{${SETTINGS_FILE_NAME},${LEGACY_COLORS_FILE_NAME}}` }, new SettingsFileCompletionProvider(), '"', '@'
         );
     }
 
     async provideCompletionItems(document: vscode.TextDocument, position: vscode.Position): Promise<vscode.CompletionItem[]> {
-        if (!isTopLevelKeyPosition(document, position)) return [];
-
+        const keyPath = keyPathAt(document.getText(new vscode.Range(new vscode.Position(0, 0), position)));
+        if (!keyPath) return [];
+        const isLegacy = path.basename(document.fileName) === LEGACY_COLORS_FILE_NAME;
+        const atTopLevel = keyPath.length === 0;
+        const inVariables = isLegacy ? atTopLevel : keyPath.length === 1 && keyPath[0] === VARIABLES_KEY;
         const already = new Set(existingKeys(document.getText()));
+        let items: vscode.CompletionItem[];
+        if (inVariables) items = await this.variableKeyItems(document, already);
+        else if (atTopLevel && !already.has(VARIABLES_KEY)) items = [variablesItem()];
+        else return [];
+
+        // Inside an open quote the quote is already there; otherwise insert a quoted key.
+        const lineBefore = document.lineAt(position.line).text.substring(0, position.character);
+        const inQuote = /"[^"]*$/.test(lineBefore);
+        for (const item of items) {
+            const label = String(item.label);
+            item.insertText = inQuote ? label : `"${label}"`;
+            if (inQuote) {
+                const start = position.character - (lineBefore.length - lineBefore.lastIndexOf('"') - 1);
+                item.range = new vscode.Range(position.line, start, position.line, position.character);
+            }
+        }
+        return items;
+    }
+
+    /** The groups and the declared names not yet used as keys. */
+    private async variableKeyItems(document: vscode.TextDocument, already: Set<string>): Promise<vscode.CompletionItem[]> {
         const items: vscode.CompletionItem[] = [];
         for (const group of GROUP_NAMES) {
             if (already.has(group)) continue;
@@ -39,17 +64,6 @@ export class ColorsFileCompletionProvider implements vscode.CompletionItemProvid
             item.documentation = description;
             item.sortText = `1${name}`;
             items.push(item);
-        }
-        // Inside an open quote the quote is already there; otherwise insert a quoted key.
-        const lineBefore = document.lineAt(position.line).text.substring(0, position.character);
-        const inQuote = /"[^"]*$/.test(lineBefore);
-        for (const item of items) {
-            const label = String(item.label);
-            item.insertText = inQuote ? label : `"${label}"`;
-            if (inQuote) {
-                const start = position.character - (lineBefore.length - lineBefore.lastIndexOf('"') - 1);
-                item.range = new vscode.Range(position.line, start, position.line, position.character);
-            }
         }
         return items;
     }
@@ -83,28 +97,10 @@ export class ColorsFileCompletionProvider implements vscode.CompletionItemProvid
     }
 }
 
-/** True when the cursor is where a top-level property name goes (brace depth 1, before a colon). */
-function isTopLevelKeyPosition(document: vscode.TextDocument, position: vscode.Position): boolean {
-    const before = document.getText(new vscode.Range(new vscode.Position(0, 0), position));
-    let depth = 0;
-    let inString = false;
-    let stringStart = -1;
-    for (let i = 0; i < before.length; i++) {
-        const ch = before[i];
-        if (inString) {
-            if (ch === '\\') i++;
-            else if (ch === '"') inString = false;
-            continue;
-        }
-        if (ch === '"') { inString = true; stringStart = i; }
-        else if (ch === '{' || ch === '[') depth++;
-        else if (ch === '}' || ch === ']') depth--;
-    }
-    if (depth !== 1) return false;
-    // After the last "{" or "," at depth 1 there must be no ":" yet (we are before the value).
-    const tail = inString ? before.substring(0, stringStart) : before;
-    const lastSeparator = Math.max(tail.lastIndexOf('{'), tail.lastIndexOf(','));
-    return !tail.substring(lastSeparator + 1).includes(':');
+function variablesItem(): vscode.CompletionItem {
+    const item = new vscode.CompletionItem(VARIABLES_KEY, vscode.CompletionItemKind.Property);
+    item.detail = 'colours, styles and descriptions of names, wildcards and @groups';
+    return item;
 }
 
 function existingKeys(text: string): string[] {
