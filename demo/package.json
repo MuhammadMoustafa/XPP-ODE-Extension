@@ -1,0 +1,11 @@
+{
+	"name": "xpp-demo-recorder",
+	"private": true,
+	"description": "Records the README demo GIFs of the XPP extension; see README.md",
+	"type": "module",
+	"dependencies": {
+		"ffmpeg-static": "^5.2.0",
+		"gifenc": "^1.0.3",
+		"pngjs": "^7.0.0"
+	}
+}

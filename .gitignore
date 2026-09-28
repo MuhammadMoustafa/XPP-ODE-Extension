@@ -8,11 +8,5 @@ xppall/
 docs/*
 !docs/roadmap.md
 ode/
-
-# demo recorder (scripts, models, recordings)
-demo/**
-.claude/**
-.github/**
-# demo media: the README links them from GitHub
-images/*.gif
 images/*.mp4
+debug.log

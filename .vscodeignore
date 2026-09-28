@@ -38,3 +38,4 @@ demo/**
 # demo media: the README links them from GitHub
 images/*.gif
 images/*.mp4
+debug.log
