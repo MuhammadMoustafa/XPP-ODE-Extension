@@ -8,9 +8,11 @@ export interface SemanticResult {
     end: number;
     severity: 'error' | 'warning' | 'information';
     type: 'undefined' | 'unused' | 'init-target' | 'ignored-line' | 'keyword-name' | 'option' | 'option-value' | 'syntax'
-        | 'init-value' | 'initcond-formula';
+        | 'init-value' | 'initcond-formula' | 'markov-duplicate' | 'derived-frozen';
     /** Render the range faded (VS Code "unnecessary" tag). */
     unnecessary?: boolean;
+    /** A sure fix: replace this span (which may be on another line than the finding) with `text`. */
+    fix?: { title: string; line: number; start: number; end: number; text: string };
 }
 
 /** Declarations that never need to be referenced to be useful. */
@@ -102,6 +104,20 @@ export function checkSemantics(
     }
 
     results.push(...checkInitialValues(model));
+    results.push(...checkDerivedParameters(model, declaredByName));
+
+    // A second "markov" with a name already used: XPP stops loading ("Bad expression z[0][0]")
+    const markovNames = new Set<string>();
+    for (const decl of model.declarations.filter(d => d.kind === 'markov')) {
+        if (markovNames.has(decl.nameLower)) {
+            results.push({
+                message: `A Markov chain "${decl.name}" is already declared. XPP makes a second chain but no second ` +
+                    `variable, and the model does not load ("Bad expression ${decl.name}[0][0]"). Give each chain its own name.`,
+                line: decl.line, start: decl.start, end: decl.end, severity: 'error', type: 'markov-duplicate',
+            });
+        }
+        markovNames.add(decl.nameLower);
+    }
 
     // Keyword-like names on fixed-variable lines: "p=1" is a variable, "p a=1" a declaration
     for (const decl of model.declarations) {
@@ -217,6 +233,52 @@ function checkInitialValues(model: XppModel): SemanticResult[] {
                 type: 'initcond-formula',
             };
         });
+}
+
+/** Declarations whose value changes during a run. */
+const CHANGING: Set<Declaration['kind']> = new Set(['state', 'aux', 'fixed', 'markov', 'solv', 'array', 'wiener']);
+
+/**
+ * A derived parameter "!d=..." is worked out at a run's start and after a parameter change
+ * (xppautX derived.cpp, evaluate_derived), so what it reads is frozen there. Measured: with
+ * y'=1, y(0)=1, "!d=y" stays 1, "!e=t" stays 0 and "!r=ran(1)" keeps one draw.
+ */
+function checkDerivedParameters(model: XppModel, declaredByName: Map<string, Declaration[]>): SemanticResult[] {
+    const results: SemanticResult[] = [];
+    for (const derived of model.declarations.filter(d => d.kind === 'derived')) {
+        // The formula, with any "\\" continuation lines joined
+        const segment = model.expressions.find(e => e.positions[0]?.line === derived.line);
+        const inFormula = (ref: { line: number; start: number }) =>
+            !!segment?.positions.some(p => p.line === ref.line && p.col === ref.start);
+        const variable = model.references.find(ref => ref.role === 'expression' && inFormula(ref) &&
+            (declaredByName.get(ref.nameLower) ?? []).some(d => CHANGING.has(d.kind)));
+        let found: { name: string; line: number; start: number; end: number; what: string } | undefined = variable && {
+            name: variable.name, line: variable.line, start: variable.start, end: variable.end,
+            what: `keeps the value "${variable.name}" has then, so "!${derived.name}" does not follow "${variable.name}"`,
+        };
+        if (!found) {
+            const m = segment && /\b(?:(t)\b(?!\s*\()|(ran|normal)\s*\()/i.exec(segment.text);
+            if (segment && m) {
+                const name = m[1] ?? m[2];
+                const at = segment.positions[m.index];
+                found = {
+                    name, line: at.line, start: at.col, end: at.col + name.length,
+                    what: m[1] ? `keeps the value of t then (0 at the start), not the running time`
+                        : `makes one draw of "${name}" for the whole run, not a new one each step`,
+                };
+            }
+        }
+        if (!found) continue;
+        const bang = model.lines[derived.line].lastIndexOf('!', derived.start);
+        results.push({
+            message: `"!${derived.name}" is worked out once, at the start of a run and after a parameter changes, ` +
+                `so it ${found.what}. Measured: with y'=1 and y(0)=1, "!d=y" stays 1. ` +
+                `Write it without the "!" ("${derived.name}=...") to have it worked out every step.`,
+            line: found.line, start: found.start, end: found.end, severity: 'warning', type: 'derived-frozen',
+            fix: { title: `Write "${derived.name}=..." (worked out every step)`, line: derived.line, start: bang, end: derived.start, text: '' },
+        });
+    }
+    return results;
 }
 
 function capitalize(word: string): string {

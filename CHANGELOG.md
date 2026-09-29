@@ -2,6 +2,14 @@
 
 All notable changes to this extension will be documented in this file.
 
+## Version 0.4.2
+
+- More .ode quirks, from xppautX splitting its reader from its model builder, each measured on xppautX:
+  - **Error**: `table g @ file`. XPP has no two-dimensional tables and stops loading (`TWO D NOT HERE YET`).
+  - **Error**: a Markov cell without its closing `}`, as in `{0} {a`. XPP reads a cell up to its `}` and does not stop at the end of the line, so the rate is whatever follows in memory.
+  - **Error**: two `markov` lines with the same name. XPP makes a second chain but no second variable, and the model does not load (`Bad expression z[0][0]`).
+  - **Warning**: a derived parameter reading something that changes. `!d=...` is worked out at a run's start and after a parameter change, so with `y'=1` and `y(0)=1`, `!d=y` stays 1, `!e=t` stays 0 and `!r=ran(1)` keeps one draw. Write `d=...` without the `!` to have it worked out every step; a quick fix does it.
+
 ## Version 0.4.1
 
 - New checks for how XPP's parser groups `^`, comparisons and unary minus, all confirmed by running the expressions through `add_expr()`/`evaluate()` in xppautX and the failing files through `xppautX -silent`. They follow from one table: priority 7 is `^`, `**` and every comparison; priority 6 is `*`, `/`, `&` and unary minus; priority 4 is binary `+`, `-` and `|`.

@@ -11,7 +11,16 @@ Write XPPAUT models (`.ode`, `.inc`) with highlighting, refactoring and checks t
 
 ![Custom colours typed rule by rule, diagnostics with their reason on hover, rename, and extract to variable](images/colors-demo.gif)
 
-## What's new in 0.4.1
+## What's new in 0.4.2
+
+More checks for what XPP reads differently from how it looks, each measured on [xppautX](https://github.com/MuhammadMoustafa/xppautX):
+
+- An error for `table g @ file`: XPP has no two-dimensional tables and stops loading.
+- An error for a Markov cell without its closing `}` (`{0} {a`): XPP reads on past the end of the line.
+- An error for two `markov` lines with the same name: the model does not load.
+- A warning for a derived parameter reading something that changes: `!d=y` is worked out at the run's start and stays at `y`'s first value. A quick fix removes the `!`.
+
+### 0.4.1
 
 - [Operator-precedence checks](#operator-precedence): an error for a sign XPP rejects (`2*-3`) and for operators XPP does not have (`!=`, `&&`), with quick fixes; a warning where a comparison, `&` or `|` silently regroups arithmetic (`2*3<4` is `2*(3<4)`).
 - [Initial values](#initial-values) checked the way XPP reads them: `init y=2*3` starts `y` at 2, and `y(0)=a` at 0.
@@ -27,8 +36,8 @@ Every release is listed in the [changelog](CHANGELOG.md).
 
 The extension checks each `.ode`/`.inc` file as you type and reports:
 
-- **Errors**, for what stops XPP loading the file or makes it ignore a line: missing `done`, unbalanced brackets, reserved words used as names, duplicate or conflicting names, `solv` lines with spaces around `=`, a [sign where XPP allows none](#operator-precedence) (`2*-3`, `x^-2`), [operators XPP does not have](#operator-precedence) (`!=`, `&&`, `||`, `!x`), an `if` not written `if(c)then(a)else(b)`, an [`init` value](#initial-values) that is not a plain number (`init y=2*3` starts at 2), `@` options XPP drops because they are not exactly `name=value`, and [numeric `@` values that are not plain numbers](#-option-values) (`@ total=2*3` is 2, not 6).
-- **Warnings**, for what loads but probably does not mean what you wrote: text after `done` (shown dimmed; XPP stops reading there), undefined names, unused parameters, fixed variables and functions (shown faded), initial conditions for names that are not state variables, lines XPP silently skips, unknown `@` option names, fixed variables named like a keyword (`p=1`), a [comparison, `&` or `|` next to arithmetic](#operator-precedence) (`2*3<4`, `-1<0`, `a<b<c`, `a|b-c`), a [formula in `y(0)=`](#initial-values) (`y` starts at 0), and a division by a literal `0` (XPP silently gives 4.5e14, not an error).
+- **Errors**, for what stops XPP loading the file or makes it ignore a line: missing `done`, unbalanced brackets, reserved words used as names, duplicate or conflicting names, `solv` lines with spaces around `=`, a [sign where XPP allows none](#operator-precedence) (`2*-3`, `x^-2`), [operators XPP does not have](#operator-precedence) (`!=`, `&&`, `||`, `!x`), an `if` not written `if(c)then(a)else(b)`, an [`init` value](#initial-values) that is not a plain number (`init y=2*3` starts at 2), `@` options XPP drops because they are not exactly `name=value`, [numeric `@` values that are not plain numbers](#-option-values) (`@ total=2*3` is 2, not 6), a two-dimensional `table g @ file` (not implemented in XPP), a Markov cell without its closing `}`, and two `markov` lines with the same name.
+- **Warnings**, for what loads but probably does not mean what you wrote: text after `done` (shown dimmed; XPP stops reading there), undefined names, unused parameters, fixed variables and functions (shown faded), initial conditions for names that are not state variables, lines XPP silently skips, unknown `@` option names, fixed variables named like a keyword (`p=1`), a [comparison, `&` or `|` next to arithmetic](#operator-precedence) (`2*3<4`, `-1<0`, `a<b<c`, `a|b-c`), a [formula in `y(0)=`](#initial-values) (`y` starts at 0), a division by a literal `0` (XPP silently gives 4.5e14, not an error), and a derived parameter reading something that changes (`!d=y` is worked out at the run's start and stays at `y`'s first value).
 - **Information**, for legal surprises: `2^3^2` is `(2^3)^2`, `-2^2` is `-(2^2)`, and in `if(c)then(a)else(b)+5` the `+5` applies to the whole `if`.
 
 Names defined in `#include`d files count as defined. Inside an `.inc` file the undefined-name check is off, because the including `.ode` file may define them.

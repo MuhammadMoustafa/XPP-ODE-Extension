@@ -291,6 +291,14 @@ export function parseXpp(text: string): XppModel {
         }
         if (body.startsWith('{')) {
             info.kind = 'markov-row';
+            // XPP copies a cell up to its "}" (markov.cpp, markov_cell) and never stops at the
+            // line's end: without the "}" it reads on into whatever memory follows.
+            const open = /\{[^}]*$/.exec(body);
+            if (open) {
+                problem('This Markov cell has no closing "}". XPP reads a cell up to its "}" and does not stop ' +
+                    'at the end of the line, so it reads on past it and the rate is undefined. Write it as "{a}".',
+                    indent + open.index, text.length, 'error');
+            }
             addRefs(indent, text.length);
             continue;
         }
@@ -381,6 +389,12 @@ export function parseXpp(text: string): XppModel {
                     if (!nameMatch) { problem(`Expected a name after "${word}"`, indent, text.length, 'error'); break; }
                     const nameStart = restStart + nameMatch[0].length - nameMatch[1].length;
                     declare(kind, nameMatch[1], span(nameStart, nameStart + nameMatch[1].length));
+                    if (kind === 'table' && /^\s*@/.test(rest.substring(nameMatch[0].length))) {
+                        // expr_symbols.cpp, add_2d_table: not implemented, it always fails
+                        problem('XPP has no two-dimensional tables: "table name @ file" stops the model from loading ' +
+                            '("TWO D NOT HERE YET"). Use a file table ("table name file") or a formula table ' +
+                            '("table name % npts xlo xhi formula").', indent, text.length, 'error');
+                    }
                     if (kind === 'table') {
                         // "table name % npts xlo xhi formula": the formula may reference parameters
                         const formula = /^\s*[a-zA-Z_][a-zA-Z0-9_]*\s+%\s+\S+\s+\S+\s+\S+\s+/.exec(rest);

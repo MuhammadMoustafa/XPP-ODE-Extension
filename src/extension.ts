@@ -18,6 +18,7 @@ import { OperatorHoverProvider } from './providers/operatorHoverProvider';
 import { DescriptionHoverProvider } from './providers/descriptionHoverProvider';
 import { DescriptionQuickFixProvider } from './providers/descriptionQuickFixProvider';
 import { OperatorQuickFixProvider } from './providers/operatorQuickFixProvider';
+import { SemanticQuickFixProvider } from './providers/semanticQuickFixProvider';
 
 const XPP_SELECTOR: vscode.DocumentSelector = { scheme: 'file', language: XPP_LANGUAGE_ID };
 
@@ -62,6 +63,9 @@ export function activate(context: vscode.ExtensionContext) {
         }),
         vscode.languages.registerCodeActionsProvider(XPP_SELECTOR, new OperatorQuickFixProvider(), {
             providedCodeActionKinds: OperatorQuickFixProvider.providedCodeActionKinds,
+        }),
+        vscode.languages.registerCodeActionsProvider(XPP_SELECTOR, new SemanticQuickFixProvider(), {
+            providedCodeActionKinds: SemanticQuickFixProvider.providedCodeActionKinds,
         }),
         vscode.workspace.onDidChangeConfiguration((event) => {
             if (OPERATOR_SETTINGS.some((setting) => event.affectsConfiguration(setting))) {

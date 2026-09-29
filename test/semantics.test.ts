@@ -252,3 +252,56 @@ suite('"x(0)=" initial conditions', () => {
         assert.deepStrictEqual(results.map(r => r.severity), ['information']);
     });
 });
+
+suite('tables, Markov chains and derived parameters (measured on xppautX 2026-09-29)', () => {
+    const problems = (text: string) => run(text).filter(r => r.type === 'syntax');
+
+    test('a two-dimensional table is an error: XPP stops loading', () => {
+        const results = problems("table g @ foo.dat\ny'=0\ndone");
+        assert.strictEqual(results.length, 1);
+        assert.strictEqual(results[0].severity, 'error');
+        assert.ok(results[0].message.includes('TWO D NOT HERE YET'));
+        assert.strictEqual(problems("table f % 3 0 1 t\ntable h data.tab\ny'=f(1)+h(1)\ndone").length, 0);
+    });
+
+    test('a Markov cell without its closing "}" is an error', () => {
+        const results = problems("par a=1,b=1\nmarkov z 2\n{0} {a\n{b} {0}\ny'=z\ndone");
+        assert.strictEqual(results.length, 1);
+        assert.strictEqual(results[0].line, 2);
+        assert.strictEqual(results[0].start, 4);
+        assert.strictEqual(problems("par a=1,b=1\nmarkov z 2\n{0} {a}\n{b} {0}\ny'=z\ndone").length, 0);
+    });
+
+    test('a second "markov" with the same name is an error', () => {
+        const text = "par a=1,b=1\nmarkov z 2\n{0} {a}\n{b} {0}\nmarkov z 2\n{0} {b}\n{a} {0}\ny'=z\ndone";
+        const results = ofType(text, 'markov-duplicate');
+        assert.strictEqual(results.length, 1);
+        assert.strictEqual(results[0].line, 4);
+        assert.strictEqual(results[0].severity, 'error');
+    });
+
+    test('a derived parameter reading t, a variable or a random function is frozen: warning', () => {
+        const text = "par a=2\ny'=1\naux w=y\n!d=y\n!e=a*t\n!r=ran(1)\n!f=w+1\n!ok=a*2\ny(0)=d+e+r+f+ok\ndone";
+        const results = ofType(text, 'derived-frozen');
+        assert.deepStrictEqual(results.map(r => r.line), [3, 4, 5, 6]);
+        assert.ok(results.every(r => r.severity === 'warning'));
+        assert.ok(results[0].message.includes('"y"'));
+        assert.deepStrictEqual(ofType("par a=2\n!d=a*2+sin(a)\ny'=d\ndone", 'derived-frozen'), []);
+    });
+
+    test('its quick fix removes the "!", also when the variable sits on a continuation line', () => {
+        const apply = (text: string) => {
+            const [result] = ofType(text, 'derived-frozen');
+            assert.ok(result.fix, 'a fix');
+            const lines = text.split('\n');
+            const { line, start, end, text: replacement } = result.fix!;
+            lines[line] = lines[line].substring(0, start) + replacement + lines[line].substring(end);
+            return { title: result.fix!.title, text: lines.join('\n') };
+        };
+        const fixed = apply("y'=1\n  ! d = y+1\ndone");
+        assert.strictEqual(fixed.text, "y'=1\n  d = y+1\ndone");
+        assert.strictEqual(fixed.title, 'Write "d=..." (worked out every step)');
+        assert.deepStrictEqual(ofType(fixed.text, 'derived-frozen'), []);
+        assert.strictEqual(apply("y'=1\n!d=2*\\\ny\ndone").text, "y'=1\nd=2*\\\ny\ndone");
+    });
+});
