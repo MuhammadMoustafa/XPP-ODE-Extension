@@ -12,8 +12,10 @@ const CLOSERS = new Set(Object.values(PAIRS));
 
 /**
  * Finds unmatched or mismatched brackets. Comments and everything after "done" are ignored.
+ * On `markovRows` a "{" left open at the line's end is not reported: the Markov check says
+ * what XPP does with it (it reads the cell on past the line).
  */
-export function checkParentheses(lines: string[]): ParenthesesResult[] {
+export function checkParentheses(lines: string[], markovRows: Set<number> = new Set()): ParenthesesResult[] {
     const results: ParenthesesResult[] = [];
     const stack: { char: string; line: number; index: number }[] = [];
 
@@ -34,6 +36,11 @@ export function checkParentheses(lines: string[]): ParenthesesResult[] {
                         end: j + 1,
                     });
                 }
+            }
+        }
+        if (markovRows.has(lineNumber)) {
+            while (stack.length > 0 && stack[stack.length - 1].line === lineNumber && stack[stack.length - 1].char === '{') {
+                stack.pop();
             }
         }
     });

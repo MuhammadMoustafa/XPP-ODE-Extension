@@ -16,4 +16,4 @@ dates; its issue has the same text and every later decision as a comment.
 | T8 | #1 | `.snapx` sessions (a zip): open read-only, list the contents, show the text parts | T4 | blocked |
 | T9 | #1 | Call `xppautX --check model.ode` (JSON diagnostics) and drop the extension's own copy of the rules | xppautX#123 | blocked |
 | T10 | #1 | Checks for the .ode quirks xppautX's W79 found (issue #1, 2026-09-29): error for `table g @ file` (not implemented, load stops), a Markov cell without `}` (read past the line), a duplicate `markov` name (load stops); warning for `!d=` reading t, a variable or `ran`/`normal` (frozen at the run's start). Old-style models' aux count between loads is not a file check (xppautX keeps it). Measured on xppautX 2026-09-29. Ships in 0.4.2 (maintainer, 2026-09-29) | none | done |
-| T11 | #5 | Release 0.4.2: T10's checks; commit, heavy gates, push, `vsce publish` (maintainer, 2026-09-29) | T10 | in-progress |
+| T11 | #5 | Release 0.4.2: T10's checks; commit, heavy gates, push, `vsce publish` (maintainer, 2026-09-29). Also: an unclosed Markov cell reported once, not also by the bracket check | T10 | done |

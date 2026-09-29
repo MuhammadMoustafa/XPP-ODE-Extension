@@ -65,6 +65,14 @@ suite('Regressions', () => {
             const results = checkParentheses(['x=(1]']);
             assert.deepStrictEqual(results.map(r => r.message), ['Unmatched closing parenthesis: ]']);
         });
+
+        test('leaves an unclosed Markov cell to the Markov check, but still checks inside the cell', () => {
+            const markov = ['markov z 2', '{0} {a', '{b} {0}'];
+            assert.deepStrictEqual(checkParentheses(markov, new Set([1, 2])), []);
+            assert.strictEqual(checkParentheses(markov).length, 1);
+            const inner = checkParentheses(['markov z 2', '{0} {a*(b}', '{b} {0}'], new Set([1, 2]));
+            assert.deepStrictEqual(inner.map(r => r.message), ['Unmatched closing parenthesis: }']);
+        });
     });
 
     suite('rename', () => {
