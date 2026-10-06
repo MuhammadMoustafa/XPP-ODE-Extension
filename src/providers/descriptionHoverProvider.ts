@@ -24,22 +24,27 @@ export class DescriptionHoverProvider implements vscode.HoverProvider {
         const nameLower = word.name.toLowerCase();
         const model = parseXpp(text);
         const included = readIncludedFiles(document.uri.fsPath, model.includes);
-        const info = [model, ...included.map(file => parseXpp(file.text))]
-            .map(fileModel => describeName(fileModel.declarations, nameLower))
-            .find((found): found is NameInfo => found !== undefined);
-        if (!info) return undefined;
+        const files = [
+            { file: path.basename(document.uri.fsPath), text, model },
+            ...included.map(file => ({ file: path.basename(file.path), text: file.text, model: parseXpp(file.text) })),
+        ];
+        let owner: (typeof files)[number] | undefined;
+        let info: NameInfo | undefined;
+        for (const candidate of files) {
+            info = describeName(candidate.model.declarations, nameLower);
+            if (info) { owner = candidate; break; }
+        }
+        if (!info || !owner) return undefined;
 
         const markdown = formatDescriptionHover({
             name: word.name,
             kindLabel: info.kindLabel,
-            entries: collectDescriptions(text).byName.get(nameLower) ?? [],
-            includedEntries: included.map(file => ({
-                file: path.basename(file.path),
-                entries: collectDescriptions(file.text).byName.get(nameLower) ?? [],
-            })),
-            configDescriptions: configDescriptionsFor(nameLower, info.kind, IdentifierColorProvider.loadConfig(document), info.arrayBase),
+            declaredAt: { file: owner.file, line: info.line },
+            memberIndex: info.memberIndex,
+            files: files.map(f => ({ file: f.file, entries: collectDescriptions(f.text).byName.get(nameLower) ?? [] })),
+            configDescriptions: configDescriptionsFor(nameLower, info.kind, IdentifierColorProvider.loadConfig(document), info.arrayBase, info.memberIndex),
         });
-        return new vscode.Hover(new vscode.MarkdownString(markdown), word.range);
+        return new vscode.Hover(Object.assign(new vscode.MarkdownString(markdown), { supportHtml: true }), word.range);
     }
 }
 

@@ -2,6 +2,22 @@
 
 All notable changes to this extension will be documented in this file.
 
+## Version 0.4.3
+
+- **Error**: declaring a name that is already a member of an array. With `x[1..3]'=-x[j]`, `par x2=5` (or `x2=5`) stops XPP with `Duplicate name X2`, measured on xppautX. Reading `x2` is fine, it is the array's member.
+- **One hover format** for every name (variable, array, array member, name from an `#include`d file): the name and kind with the `file:line` where it is declared, then each description with its own `file:line` (`m.ode:23 — from vm[3, 4]`), in grey italics so the description reads first; descriptions from `.xppsettings.json` show `.xppsettings.json: key`. Before, the declaration had no location and lines read `line 5` or `file, line 5`. One function builds it.
+- **An `.ode` reads its whole `#include` tree**, not only the files it names: an include inside an included file counts for hovers and defined names. Each file is read once and a cycle ends. An `.inc` still does not read the `.ode` that includes it; list its shared names in `.xppsettings.json` (a name key colours the name wherever it is written).
+- **Error**: a `#` comment after the names of a `par`, `number`, `init` or `wiener` line. XPPAUT reads a comment only at the start of a line, so `par gr=0.01  # Changed on Oct 6th` declares the parameters `#`, `Changed`, `on`, `Oct` and `6th`, and a second such line stops the load because `#` is declared twice ([XPPAUT issue 11](https://github.com/Ermentrout/xppaut/issues/11)). The error links to that issue; a quick fix moves the comment to its own line above, where it still describes the name on hover. Equations (`x'=...`), `aux` and `global` lines are not affected.
+- **`{j}` in a description** is the array member's number: with `# x: membrane voltage of cell {j}`, hovering `x2` shows "cell 2". It works in comments and in `.xppsettings.json`.
+- **`.xppsettings.json` keys can pick array members**, as descriptions already could: `"vm[2, 4]"`, `"x[1..3, 7]"`. They set colours and descriptions for those members, after the member's own entry and before the whole array's. The settings schema accepts them.
+- A function's arguments are no longer coloured like the globals of the same name: in `iion(v,w)=...` the `w` is local to that line, not the state array `w`.
+- The `#` error's code in the Problems panel and the hover now reads `Ermentrout/xppaut#11` and opens the XPPAUT issue.
+- **Several names in one comment above a declaration**: `# gk: maximal K; gl: leak` describes both, as a trailing comment already could (every part must be `name: text` for a name on the line).
+- `x[3]` means the same member as `x3`, in comments and in `.xppsettings.json`: the one written later wins, instead of `x3` always beating `x[3]`. A list or range (`x[3, 4]`) is still a selection, below the member's own entry.
+- The `#` error's quick fix keeps a shared comment on one line (`# gk: max K; gl: leak`) instead of splitting it.
+- The "description overridden" warning is for variables only. Array members layer their descriptions (`x3:`, `x[1..3]:`, `x[3, 5]:`, `x:`), so overlapping keys no longer warn; the hover shows all of them, the later one first.
+- Descriptions in the README and the demo now go above the declaration (`# gna: Maximal sodium conductance`) instead of after it.
+
 ## Version 0.4.2
 
 - More .ode quirks, from xppautX splitting its reader from its model builder, each measured on xppautX:

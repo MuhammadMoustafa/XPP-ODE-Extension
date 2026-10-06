@@ -8,7 +8,11 @@ export interface SemanticResult {
     end: number;
     severity: 'error' | 'warning' | 'information';
     type: 'undefined' | 'unused' | 'init-target' | 'ignored-line' | 'keyword-name' | 'option' | 'option-value' | 'syntax'
-        | 'init-value' | 'initcond-formula' | 'markov-duplicate' | 'derived-frozen';
+        | 'init-value' | 'initcond-formula' | 'markov-duplicate' | 'derived-frozen' | 'hash-comment' | 'array-member-duplicate';
+    /** A page that explains the finding; the diagnostic's code links to it. */
+    href?: string;
+    /** What the diagnostic's code link shows, when it should read differently from `type`. */
+    codeLabel?: string;
     /** Render the range faded (VS Code "unnecessary" tag). */
     unnecessary?: boolean;
     /** A sure fix: replace this span (which may be on another line than the finding) with `text`. */
@@ -59,7 +63,11 @@ export function checkSemantics(
     // Line-level problems and ignored lines
     for (const info of model.lineInfos) {
         for (const p of info.problems) {
-            results.push({ message: p.message, line: info.line, start: p.start, end: p.end, severity: p.severity, type: 'syntax' });
+            results.push({
+                message: p.message, line: info.line, start: p.start, end: p.end, severity: p.severity,
+                type: p.type ?? 'syntax', href: p.href, codeLabel: p.codeLabel,
+                fix: p.type === 'hash-comment' ? moveCommentAbove(model, info.line, p.start) : undefined,
+            });
         }
         if (info.kind === 'ignored') {
             const text = model.lines[info.line];
@@ -119,6 +127,16 @@ export function checkSemantics(
         markovNames.add(decl.nameLower);
     }
 
+    // "x[1..3]" declares x1, x2, x3: a second declaration of one of them stops XPP ("Duplicate name X2")
+    const members = new Set(model.declarations.filter(d => d.fromArray && d.kind !== 'array').map(d => d.nameLower));
+    for (const decl of model.declarations.filter(d => !d.fromArray && members.has(d.nameLower))) {
+        results.push({
+            message: `Duplicate name ${decl.name.toUpperCase()}: "${decl.name}" is already a member of an array, so XPP stops ` +
+                `loading the model. Reading it (aux a=${decl.name}) is fine; declaring it again is not.`,
+            line: decl.line, start: decl.start, end: decl.end, severity: 'error', type: 'array-member-duplicate',
+        });
+    }
+
     // Keyword-like names on fixed-variable lines: "p=1" is a variable, "p a=1" a declaration
     for (const decl of model.declarations) {
         if (decl.kind === 'fixed' && !decl.fromArray && isKeywordLikeName(decl.name)) {
@@ -169,6 +187,36 @@ export function checkSemantics(
     }
 
     return results;
+}
+
+/**
+ * The fix for a "#" comment after a name list: the comment moves to lines above, written
+ * "# name: text" because that is the form that describes a name there. "a: x; b: y" parts
+ * become one line each; any other comment is repeated for every name on the line.
+ */
+function moveCommentAbove(model: XppModel, line: number, hash: number): SemanticResult['fix'] {
+    const raw = model.lines[line];
+    const indent = raw.substring(0, raw.length - raw.trimStart().length);
+    const code = raw.substring(0, hash).trimEnd();
+    const comment = raw.substring(hash).replace(/^#+\s*/, '').trim();
+    const names = [...new Set([
+        ...model.declarations.filter(d => d.line === line && !d.fromArray).map(d => d.name),
+        ...model.references.filter(r => r.line === line && r.role === 'init').map(r => r.name),
+    ])];
+    const parts = comment.split(';').map(part => /^\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*:\s*(\S.*?)\s*$/.exec(part));
+    const keyed = parts.every(m => m && names.some(n => n.toLowerCase() === m[1].toLowerCase()));
+    // One line, as the author wrote it, when the comment is already "name: text; ..." or can be
+    // shared as "a: text; b: text"; a plain comment holding ";" would be split wrongly, so it gets a line per name.
+    const oneLine = keyed ? comment
+        : names.length > 0 && !comment.includes(';') ? names.map(n => `${n}: ${comment}`).join('; ')
+        : undefined;
+    const lines = oneLine !== undefined ? [`# ${oneLine}`]
+        : names.length > 0 ? names.map(n => `# ${n}: ${comment}`) : [`# ${comment}`];
+    return {
+        title: 'Move the comment to its own line above',
+        line, start: 0, end: raw.length,
+        text: [...lines.map(l => indent + l), code].join('\n'),
+    };
 }
 
 const NUMERIC_OPTIONS = new Set(numericOptionNames);

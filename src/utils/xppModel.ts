@@ -16,7 +16,7 @@
  *  - any other line is silently ignored by XPP.
  */
 import { builtinFunctions, builtinConstants, specialFunctions, declarationKeywords, optionNames } from './constants';
-import { codeLines, codePart, isDoneLine } from './lineUtils';
+import { codeLines, codePart, commentStart, isDoneLine } from './lineUtils';
 
 export type LineKind =
     | 'blank' | 'comment' | 'option' | 'done'
@@ -90,7 +90,11 @@ export interface LineInfo {
     /** The keyword span for keyword-form lines. */
     keyword?: TextSpan;
     /** Line-level problems found while parsing. */
-    problems: { message: string; start: number; end: number; severity: 'error' | 'warning' }[];
+    problems: {
+        message: string; start: number; end: number; severity: 'error' | 'warning';
+        /** A more specific finding type than the default 'syntax', a page that explains it. */
+        type?: 'hash-comment'; href?: string; codeLabel?: string;
+    }[];
 }
 
 export interface XppModel {
@@ -188,6 +192,34 @@ function expandArrayName(name: string, blockRange?: [number, number]): { base: s
         }
     }
     return { base, members };
+}
+
+/** Line kinds XPPAUT reads word by word (form_ode.c, get_next2 loops): a "#" there is a name, not a comment. */
+const HASH_NAME_KINDS: Set<LineKind> = new Set(['parameter', 'init', 'wiener']);
+
+export const XPPAUT_HASH_ISSUE = 'https://github.com/Ermentrout/xppaut/issues/11';
+
+/**
+ * XPPAUT treats "#" as a comment only at the start of a line. After "par", "number", "init" or
+ * "wiener" it makes a name of "#" and of every word after it, and a second such line fails the
+ * load because "#" is declared twice (xppautX docs/xppaut-findings.md, finding 28).
+ */
+function reportHashComments(rawLines: string[], map: { line: number }[], lineInfos: LineInfo[]): void {
+    for (const line of new Set(map.map(m => m.line))) {
+        const raw = rawLines[line];
+        const hash = commentStart(raw);
+        const code = raw.substring(0, hash).trimEnd();
+        if (hash === -1 || code.trim() === '') continue;
+        const comment = raw.substring(hash).trimEnd();
+        const words = comment.split(/[\s,]+/).filter(Boolean);
+        const shown = words.slice(0, 4).map(w => `"${w}"`).join(', ') + (words.length > 4 ? ', ...' : '');
+        lineInfos[line].problems.push({
+            message: `XPPAUT does not read "#" as a comment here: it makes a name of every word after it (${shown}). ` +
+                (words[0] === '#' ? 'A second line like this stops the load, because "#" is then declared twice. ' : '') +
+                'Move the comment to its own line (an XPPAUT bug).',
+            start: hash, end: hash + comment.length, severity: 'error', type: 'hash-comment', href: XPPAUT_HASH_ISSUE, codeLabel: 'Ermentrout/xppaut#11',
+        });
+    }
 }
 
 export function parseXpp(text: string): XppModel {
@@ -330,6 +362,7 @@ export function parseXpp(text: string): XppModel {
                 continue;
             }
             info.kind = kind;
+            if (HASH_NAME_KINDS.has(kind)) reportHashComments(rawLines, logicalLine.map, lineInfos);
             const rest = text.substring(restStart);
             switch (kind) {
                 case 'parameter':

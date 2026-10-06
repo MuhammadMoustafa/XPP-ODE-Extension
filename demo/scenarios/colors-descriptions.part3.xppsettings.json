@@ -1,0 +1,15 @@
+{
+    "variables": {
+        "@states": "#ff7b72",
+        "@parameters": {
+            "color": "#7ee787",
+            "fontWeight": "bold"
+        },
+        "g*": "#d2a8ff",
+        "gsyn": {
+            "color": "#79c0ff",
+            "backgroundColor": "#193549",
+            "description": "Coupling strength (mS/cm^2)"
+        }
+    }
+}

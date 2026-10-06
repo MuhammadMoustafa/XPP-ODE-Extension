@@ -1,7 +1,7 @@
 import * as assert from 'assert';
 import {
     parseDescriptionKey, collectDescriptions, formatDescriptionHover,
-    DocumentDescriptions, DescriptionEntry,
+    DocumentDescriptions, DescriptionEntry, entryRemoval,
 } from '../src/utils/descriptionsCore';
 
 const ARRAY = "x[1..10]'=-x[j]";
@@ -229,10 +229,12 @@ suite('Descriptions', () => {
             assert.deepStrictEqual(conflictSummary(d).sort(), ['gna: A -> C', 'gna: B -> C']);
         });
 
-        test('overlapping selections conflict only on the shared members', () => {
+        test('array members layer their descriptions and never conflict, selections or not', () => {
             const d = describe('# x[1..3]: A', '# x[3..5]: B', ARRAY);
-            assert.deepStrictEqual(conflictSummary(d), ['x3: A -> B']);
+            assert.deepStrictEqual(d.conflicts, []);
             assert.deepStrictEqual(summary(d, 'x3'), ['selection:B', 'selection:A']);
+            assert.deepStrictEqual(describe('# x3: first', '# x3: second', ARRAY).conflicts, []);
+            assert.deepStrictEqual(summary(describe('# x3: first', '# x3: second', ARRAY), 'x3'), ['exact:second', 'exact:first']);
         });
 
         test('different levels do not conflict', () => {
@@ -252,7 +254,11 @@ suite('Descriptions', () => {
         const hover = formatDescriptionHover({
             name: 'x7',
             kindLabel: 'state variable (array x[1..10])',
-            entries: [entry('seventh cell', 'x7', 'exact', 4), entry('all cells', 'x', 'inherited', 2)],
+            declaredAt: { file: 'm.ode', line: 6 },
+            files: [
+                { file: 'm.ode', entries: [entry('seventh cell', 'x7', 'exact', 4), entry('all cells', 'x', 'inherited', 2)] },
+                { file: 'cells.inc', entries: [entry('from the include', 'x7', 'exact', 0)] },
+            ],
             configDescriptions: [{ text: 'from settings', key: 'x*' }],
         });
 
@@ -262,12 +268,23 @@ suite('Descriptions', () => {
             assert.ok(first.includes('state variable (array x[1..10])'), first);
         });
 
-        test('each entry shows its text and 1-based line, in order', () => {
+        test('the first line says where the name is declared, as file:line', () => {
+            assert.ok(hover.split('\n')[0].includes('_(m.ode:7)_'), hover);
+        });
+
+        test('each entry shows its text and file:line (1-based), in order', () => {
             const a = hover.indexOf('seventh cell');
             const b = hover.indexOf('all cells');
-            assert.ok(a >= 0 && a < hover.indexOf('(line 5)'), hover);
-            assert.ok(hover.indexOf('(line 5)') < b, hover);
-            assert.ok(b < hover.indexOf('(line 3)'), hover);
+            assert.ok(a >= 0 && a < hover.indexOf('m.ode:5'), hover);
+            assert.ok(hover.indexOf('m.ode:5') < b, hover);
+            assert.ok(b < hover.indexOf('m.ode:3'), hover);
+            assert.ok(hover.includes('from the include <span style="color:var(--vscode-descriptionForeground);">_(cells.inc:1)_</span>'), hover);
+        });
+
+        test('the reference is italic and escaped, so the description text reads first', () => {
+            assert.ok(hover.includes('seventh cell <span style="color:var(--vscode-descriptionForeground);">_(m.ode:5)_</span>'), hover);
+            assert.ok(hover.includes('all cells <span style="color:var(--vscode-descriptionForeground);">_(m.ode:3 — from x)_</span>'), hover);
+            assert.ok(hover.includes('from settings <span style="color:var(--vscode-descriptionForeground);">_(.xppsettings.json: x\\*)_</span>'), hover);
         });
 
         test('only entries keyed by another name show where they come from', () => {
@@ -278,7 +295,69 @@ suite('Descriptions', () => {
         test('config descriptions follow the comment entries with their key', () => {
             const c = hover.indexOf('from settings');
             assert.ok(c > hover.indexOf('all cells'), hover);
-            assert.ok(hover.indexOf('(.xppsettings.json: x*)') > c, hover);
+            assert.ok(hover.indexOf('(.xppsettings.json: x\\*)') > c, hover);
+        });
+    });
+
+    suite('several names in one comment line above a declaration', () => {
+        test('"a: text; b: text" describes each name with its own text', () => {
+            const d = describe('# gk: maximal K; gl: leak', 'par gk=8, gl=2');
+            assert.deepStrictEqual(summary(d, 'gk'), ['exact:maximal K']);
+            assert.deepStrictEqual(summary(d, 'gl'), ['exact:leak']);
+        });
+
+        test('keys may be array members and selections, and spaces are free', () => {
+            const d = describe('#x[1..2]:low ;  x7 : the pacemaker', ARRAY);
+            assert.deepStrictEqual(summary(d, 'x1'), ['selection:low']);
+            assert.deepStrictEqual(summary(d, 'x7'), ['exact:the pacemaker']);
+        });
+
+        test('a ";" in ordinary text does not split it: every part must be "name: text" for a name on the line', () => {
+            const d = describe('# gk: maximal K; see the paper', 'par gk=8, gl=2');
+            assert.deepStrictEqual(summary(d, 'gk'), ['exact:maximal K; see the paper']);
+            const other = describe('# gk: maximal K; zzz: nothing', 'par gk=8, gl=2');
+            assert.deepStrictEqual(summary(other, 'gk'), ['exact:maximal K; zzz: nothing']);
+        });
+
+        test('one entry is removed whole when it is overridden: the part, not the line', () => {
+            const d = describe('# gk: first; gl: leak', '# gk: second', 'par gk=8, gl=2');
+            assert.deepStrictEqual(conflictSummary(d), ['gk: first -> second']);
+            assert.strictEqual(d.conflicts[0].loser.text, 'first');
+        });
+
+        test('removing an overridden part keeps the other parts of its line', () => {
+            const lines = ['# gk: first; gl: leak', '# gk: second', 'par gk=8, gl=2', 'done'];
+            const d = collectDescriptions(lines.join('\n'));
+            const { start, end } = entryRemoval(lines, d.conflicts[0].loser);
+            assert.deepStrictEqual([start, end], [{ line: 0, character: 2 }, { line: 0, character: 13 }]);
+            assert.strictEqual(lines[0].substring(0, start.character) + lines[0].substring(end.character), '# gl: leak');
+            const alone = collectDescriptions(['# gk: one', '# gk: two', 'par gk=8', 'done'].join('\n'));
+            assert.deepStrictEqual(entryRemoval(['# gk: one', '# gk: two', 'par gk=8'], alone.conflicts[0].loser),
+                { start: { line: 0, character: 0 }, end: { line: 1, character: 0 } });
+        });
+    });
+
+    suite('overriding one part of a shared comment line, wherever it sits', () => {
+        const remove = (lines: string[]) => {
+            const d = collectDescriptions([...lines, 'done'].join('\n'));
+            assert.strictEqual(d.conflicts.length, 1, JSON.stringify(d.conflicts.map(c => c.name)));
+            const { start, end } = entryRemoval(lines, d.conflicts[0].loser);
+            const out = lines.slice();
+            if (end.line > start.line) out.splice(start.line, end.line - start.line);   // whole line(s)
+            else out[start.line] = lines[start.line].substring(0, start.character) + lines[start.line].substring(end.character);
+            return out;
+        };
+        const SHARED = '# a: one; b: two; c: three';
+        const DECL = 'par a=1, b=2, c=3';
+
+        test('the first, the middle or the last part overridden by a later line: only that part goes', () => {
+            assert.deepStrictEqual(remove([SHARED, '# a: new', DECL]), ['# b: two; c: three', '# a: new', DECL]);
+            assert.deepStrictEqual(remove([SHARED, '# b: new', DECL]), ['# a: one; c: three', '# b: new', DECL]);
+            assert.deepStrictEqual(remove([SHARED, '# c: new', DECL]), ['# a: one; b: two', '# c: new', DECL]);
+        });
+
+        test('overridden by an earlier line, the single-part line loses and goes whole', () => {
+            assert.deepStrictEqual(remove(['# b: old', SHARED, DECL]), [SHARED, DECL]);
         });
     });
 });

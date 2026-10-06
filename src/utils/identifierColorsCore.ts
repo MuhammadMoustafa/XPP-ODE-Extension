@@ -7,6 +7,7 @@
 import * as path from 'path';
 import { codeLines, codePart } from './lineUtils';
 import { parseXpp, DeclKind } from './xppModel';
+import { parseDescriptionKey } from './descriptionsCore';
 import { builtinFunctions, builtinConstants, specialFunctions } from './constants';
 
 /** Visual properties; all optional so that a theme variant can override just one of them. */
@@ -52,11 +53,23 @@ export interface WildcardStyle {
     style: IdentifierStyle;
 }
 
+/** An array-member key such as "vm[2,4]" or "x[1..3, 7]". */
+export interface SelectionStyle {
+    /** The key as written, lower-cased. */
+    pattern: string;
+    /** Lower-case array name and the member indices the key picks. */
+    base: string;
+    indices: number[];
+    style: IdentifierStyle;
+}
+
 export interface ColorConfig {
     /** Lower-cased identifier name -> style. */
     styles: Map<string, IdentifierStyle>;
     /** Keys containing "*", in definition order; the last matching one wins. */
     wildcards: WildcardStyle[];
+    /** Keys picking array members ("vm[2,4]"), in definition order; the last matching one wins. */
+    selections: SelectionStyle[];
     /** Group name ("@states", "@parameters", ...) -> style. */
     groups: Map<GroupName, IdentifierStyle>;
     /** Human readable problems found while reading the configuration. */
@@ -111,12 +124,13 @@ const BUILTIN_NAMES = new Set<string>([...builtinFunctions, ...builtinConstants,
 export function parseColorConfig(raw: unknown, source = 'settings'): ColorConfig {
     const styles = new Map<string, IdentifierStyle>();
     const wildcards: WildcardStyle[] = [];
+    const selections: SelectionStyle[] = [];
     const groups = new Map<GroupName, IdentifierStyle>();
     const errors: string[] = [];
-    if (raw === undefined || raw === null) return { styles, wildcards, groups, errors };
+    if (raw === undefined || raw === null) return { styles, wildcards, selections, groups, errors };
     if (typeof raw !== 'object' || Array.isArray(raw)) {
         errors.push(`${source}: expected an object mapping identifier names to colours`);
-        return { styles, wildcards, groups, errors };
+        return { styles, wildcards, selections, groups, errors };
     }
     for (const [name, value] of Object.entries(raw as Record<string, unknown>)) {
         const kind = keyKind(name);
@@ -132,16 +146,21 @@ export function parseColorConfig(raw: unknown, source = 'settings'): ColorConfig
         }
         const lower = name.toLowerCase();
         if (kind === 'group') groups.set(lower as GroupName, style);
-        else if (kind === 'wildcard') wildcards.push({ pattern: lower, regex: wildcardToRegex(lower), style });
+        else if (kind === 'selection') {
+            const parsed = parseDescriptionKey(lower)!;
+            // "vm[4]" names one member, exactly as "vm4" does: the entry listed last wins
+            if (parsed.indices!.length === 1) styles.set(`${parsed.base.toLowerCase()}${parsed.indices![0]}`, style);
+            else selections.push({ pattern: lower, base: parsed.base.toLowerCase(), indices: parsed.indices!, style });
+        } else if (kind === 'wildcard') wildcards.push({ pattern: lower, regex: wildcardToRegex(lower), style });
         else styles.set(lower, style);
     }
-    return { styles, wildcards, groups, errors };
+    return { styles, wildcards, selections, groups, errors };
 }
 
-type KeyKind = 'group' | 'wildcard' | 'name';
+type KeyKind = 'group' | 'wildcard' | 'selection' | 'name';
 
 function keyKind(name: string): KeyKind {
-    return name.startsWith('@') ? 'group' : name.includes('*') ? 'wildcard' : 'name';
+    return name.startsWith('@') ? 'group' : name.includes('*') ? 'wildcard' : name.includes('[') ? 'selection' : 'name';
 }
 
 /** Why `name` cannot be a key of a variables map, or undefined when it can. */
@@ -151,6 +170,9 @@ function keyErrorFor(name: string, kind: KeyKind): string | undefined {
     }
     if (kind === 'wildcard' && !WILDCARD.test(name)) {
         return `"${name}" is not a valid wildcard (letters, digits, "_" and "*" only, e.g. "v_*")`;
+    }
+    if (kind === 'selection' && !parseDescriptionKey(name)?.indices) {
+        return `"${name}" is not a valid array selection (write the array and its members, e.g. "vm[2,4]" or "x[1..3, 7]")`;
     }
     if (kind === 'name' && !IDENTIFIER.test(name)) return `"${name}" is not a valid identifier name`;
     return undefined;
@@ -230,7 +252,7 @@ export function configFilesFor(
 
 /** A configuration with no entries. */
 export function emptyConfig(): ColorConfig {
-    return { styles: new Map(), wildcards: [], groups: new Map(), errors: [] };
+    return { styles: new Map(), wildcards: [], selections: [], groups: new Map(), errors: [] };
 }
 
 function wildcardToRegex(pattern: string): RegExp {
@@ -278,6 +300,7 @@ function visualConfig(config: ColorConfig): ColorConfig {
     return {
         styles: new Map([...config.styles].filter(([, style]) => hasVisualProperty(style))),
         wildcards: config.wildcards.filter(w => hasVisualProperty(w.style)),
+        selections: config.selections.filter(w => hasVisualProperty(w.style)),
         groups: new Map([...config.groups].filter(([, style]) => hasVisualProperty(style))),
         errors: config.errors,
     };
@@ -286,12 +309,18 @@ function visualConfig(config: ColorConfig): ColorConfig {
 /**
  * Descriptions from the config for a name, most specific first: exact, then matching wildcards
  * (last listed first), then its group. Unlike colours, every level with a description contributes.
- * An array member also gets the exact entry of its array (`arrayBase`), after its own.
+ * An array member also gets the entries that pick it ("vm[2,4]", last listed first) and then the exact
+ * entry of its array (`arrayBase`), after its own.
  */
 export function configDescriptionsFor(
-    nameLower: string, kind: DeclKind | undefined, config: ColorConfig, arrayBase?: string
+    nameLower: string, kind: DeclKind | undefined, config: ColorConfig, arrayBase?: string, memberIndex?: number
 ): { text: string; key: string }[] {
     const candidates: [IdentifierStyle | undefined, string][] = [[config.styles.get(nameLower), nameLower]];
+    if (arrayBase && memberIndex !== undefined) {
+        for (const selection of [...config.selections].reverse()) {
+            if (selection.base === arrayBase && selection.indices.includes(memberIndex)) candidates.push([selection.style, selection.pattern]);
+        }
+    }
     if (arrayBase) candidates.push([config.styles.get(arrayBase), arrayBase]);
     for (const wildcard of [...config.wildcards].reverse()) {
         if (wildcard.regex.test(nameLower)) candidates.push([wildcard.style, wildcard.pattern]);
@@ -359,6 +388,7 @@ function toThemeStyle(obj: Record<string, unknown>): ThemeStyle | string {
 export function mergeColorConfigs(...configs: ColorConfig[]): ColorConfig {
     const styles = new Map<string, IdentifierStyle>();
     const wildcardsByPattern = new Map<string, WildcardStyle>();
+    const selectionsByPattern = new Map<string, SelectionStyle>();
     const groups = new Map<GroupName, IdentifierStyle>();
     const errors: string[] = [];
     for (const config of configs) {
@@ -368,10 +398,15 @@ export function mergeColorConfigs(...configs: ColorConfig[]): ColorConfig {
             wildcardsByPattern.delete(w.pattern);
             wildcardsByPattern.set(w.pattern, { ...w, style: overlay(earlier?.style, w.style) });
         }
+        for (const sel of config.selections) {
+            const earlier = selectionsByPattern.get(sel.pattern);
+            selectionsByPattern.delete(sel.pattern);
+            selectionsByPattern.set(sel.pattern, { ...sel, style: overlay(earlier?.style, sel.style) });
+        }
         config.groups.forEach((style, name) => groups.set(name, overlay(groups.get(name), style)));
         errors.push(...config.errors);
     }
-    return { styles, wildcards: [...wildcardsByPattern.values()], groups, errors };
+    return { styles, wildcards: [...wildcardsByPattern.values()], selections: [...selectionsByPattern.values()], groups, errors };
 }
 
 /**
@@ -395,6 +430,15 @@ export function styleKey(style: IdentifierStyle): string {
 
 const WORD = /\b[a-z_][a-z0-9_]*/gi;
 const D_DT = /^\s*d([a-z_][a-z0-9_]*)\/dt/i;
+/** "f(a,b)=": a user function; its arguments are local to the line. "x(t)=" is a state, not this. */
+const FUNCTION_DEFINITION = /^\s*[a-z_][a-z0-9_]*\s*\(\s*([a-z_][a-z0-9_]*(?:\s*,\s*[a-z_][a-z0-9_]*)*)\s*\)\s*=/i;
+
+/** The lower-case argument names of a function definition line, which hide global names there. */
+function localNames(code: string): Set<string> {
+    const args = FUNCTION_DEFINITION.exec(code)?.[1];
+    if (args === undefined || /^t$/i.test(args.trim())) return new Set();
+    return new Set(args.split(',').map(a => a.trim().toLowerCase()));
+}
 
 /**
  * Finds every whole-word occurrence of the given (lower-cased) names in the code part of the
@@ -418,12 +462,13 @@ export function findIdentifierRanges(lines: string[], names: Set<string>): Map<s
             const start = derivative[0].indexOf(derivative[1]);
             if (names.has(name)) add(name, lineIndex, start, start + name.length);
         }
+        const locals = localNames(code);
         WORD.lastIndex = 0;
         let match: RegExpExecArray | null;
         while ((match = WORD.exec(code)) !== null) {
             const name = match[0].toLowerCase();
             const isDerivativeWord = derivative !== null && match.index === derivative[0].search(/\S/);
-            if (names.has(name) && !isDerivativeWord) {
+            if (names.has(name) && !isDerivativeWord && !locals.has(name)) {
                 add(name, lineIndex, match.index, match.index + name.length);
             }
         }
@@ -465,7 +510,7 @@ export function collectStyledRanges(text: string, fullConfig: ColorConfig): Styl
         entry.ranges.push(...ranges);
         byKey.set(key, entry);
     };
-    if (config.styles.size === 0 && config.wildcards.length === 0 && config.groups.size === 0) return [];
+    if (config.styles.size === 0 && config.wildcards.length === 0 && config.selections.length === 0 && config.groups.size === 0) return [];
 
     const lines = text.split(/\r?\n/);
     const model = parseXpp(text);
@@ -488,6 +533,14 @@ export function collectStyledRanges(text: string, fullConfig: ColorConfig): Styl
 
     // Name -> style, from explicit entries (plus array members) and wildcards
     const resolved = new Map<string, IdentifierStyle>(config.styles);
+    // "vm[2,4]" styles those members unless they have an entry of their own; the last listed wins
+    for (const selection of [...config.selections].reverse()) {
+        const members = membersByBase.get(selection.base) ?? [];
+        for (const index of selection.indices) {
+            const member = `${selection.base}${index}`;
+            if (members.includes(member) && !resolved.has(member)) resolved.set(member, selection.style);
+        }
+    }
     config.styles.forEach((style, name) => {
         for (const member of membersByBase.get(name) ?? []) {
             if (!resolved.has(member)) resolved.set(member, style);

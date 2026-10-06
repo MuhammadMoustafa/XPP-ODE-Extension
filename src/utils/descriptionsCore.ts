@@ -122,7 +122,10 @@ export function collectDescriptions(text: string): DocumentDescriptions {
         }
     }
     const byName = groupByName(found);
-    return { byName, conflicts: findConflicts(byName), problems };
+    // Array members layer their descriptions (own, selections, array) and are never flagged
+    const members = new Set<string>();
+    model.declarations.forEach(d => { if (d.fromArray && d.kind !== 'array') members.add(d.nameLower); });
+    return { byName, conflicts: findConflicts(byName).filter(c => !members.has(c.name)), problems };
 }
 
 /** Declarations grouped by logical line, in file order. */
@@ -182,7 +185,8 @@ function resolveKey(key: string, declLine: DeclarationLine): { targets: Target[]
         const inside = parsed.indices.filter(i => family.members.has(i));
         const outside = parsed.indices.filter(i => !family.members.has(i));
         return {
-            targets: inside.map(i => ({ nameLower: family.members.get(i)!.nameLower, level: 'selection' })),
+            // "x[3]" names one member, exactly as "x3" does; a list or range is a selection
+            targets: inside.map(i => ({ nameLower: family.members.get(i)!.nameLower, level: parsed.indices!.length === 1 ? 'exact' : 'selection' })),
             problem: outside.length > 0 ? notMembers(outside.map(i => `${family.array.name}${i}`), family) : undefined,
         };
     }
@@ -217,6 +221,14 @@ function parseKeyed(text: string, offset: number): KeyedText | undefined {
 function collectAbove(lines: string[], declLine: DeclarationLine, add: AddEntry, problems: DescriptionProblem[]): void {
     for (let line = declLine.first - 1; line >= 0 && isCommentLine(lines[line]); line--) {
         const hash = lines[line].indexOf('#');
+        // "# gk: maximal K; gl: leak": only when every part is "name: text" for a name on the line
+        const parts = splitParts(lines[line], hash + 1).map(part => keyedPart(part.text, part.start, declLine));
+        if (parts.length > 1 && parts.every((part): part is KeyedPart => part !== undefined)) {
+            for (const { keyed: { key, text, start, end }, targets } of parts) {
+                targets.forEach(target => add(target, { text, key, line, start, end, placement: 'above' }));
+            }
+            continue;
+        }
         const keyed = parseKeyed(lines[line].substring(hash + 1), hash + 1);
         if (!keyed) continue;
         const { targets, problem } = resolveKey(keyed.key, declLine);
@@ -309,8 +321,12 @@ export interface NameInfo {
     /** The declaration kind; for an array, the kind of its members. */
     kind: DeclKind;
     kindLabel: string;
+    /** Line (0-based) of the declaration; for a member of an array, the array's line. */
+    line: number;
     /** Lower-case array name, for an array member. */
     arrayBase?: string;
+    /** For an array member, its index: "x7" of "x[1..10]" is 7. */
+    memberIndex?: number;
 }
 
 /** Describes a declared name, or returns undefined when `declarations` does not declare it. */
@@ -319,36 +335,49 @@ export function describeName(declarations: Declaration[], nameLower: string): Na
     const array = families.find(f => f.array.nameLower === nameLower);
     if (array) {
         const kind = array.members.values().next().value?.kind ?? 'array';
-        return { kind, kindLabel: `array ${familyRange(array)} of ${KIND_LABELS[kind]}s` };
+        return { kind, kindLabel: `array ${familyRange(array)} of ${KIND_LABELS[kind]}s`, line: array.array.line };
     }
     const decl = declarations.find(d => d.nameLower === nameLower);
     if (!decl) return undefined;
     const owner = decl.fromArray ? families.find(f => [...f.members.values()].includes(decl)) : undefined;
-    if (!owner) return { kind: decl.kind, kindLabel: KIND_LABELS[decl.kind] };
+    if (!owner) return { kind: decl.kind, kindLabel: KIND_LABELS[decl.kind], line: decl.line };
     return {
         kind: decl.kind,
         kindLabel: `${KIND_LABELS[decl.kind]} (array ${familyRange(owner)})`,
+        line: decl.line,
         arrayBase: owner.array.nameLower,
+        memberIndex: Number(nameLower.substring(owner.array.nameLower.length)),
     };
 }
 
-/** Markdown for the hover: the name and kind, then the comment descriptions, then the configured ones. */
+/**
+ * Markdown for the hover. Every line says where it comes from the same way, in grey italics:
+ * the name and kind with "file:line" of the declaration, then each description with the
+ * "file:line" it was written at (the file's own comments first, then the "#include"d files'),
+ * then the configured ones with ".xppsettings.json: key".
+ */
 export function formatDescriptionHover(input: {
     name: string;
     kindLabel: string;
-    entries: DescriptionEntry[];
+    /** Where the name is declared. */
+    declaredAt: { file: string; line: number };
+    /** The descriptions written in comments, per file. */
+    files: { file: string; entries: DescriptionEntry[] }[];
     configDescriptions: { text: string; key: string }[];
-    /** Entries written in "#include"d files, shown after the file's own. */
-    includedEntries?: { file: string; entries: DescriptionEntry[] }[];
+    /** The index of an array member; "{j}" in a description reads as it. */
+    memberIndex?: number;
 }): string {
     const nameLower = input.name.toLowerCase();
-    const describe = (entry: DescriptionEntry, where: string) =>
-        `${entry.text} (${where})${entry.key.toLowerCase() === nameLower ? '' : ` — from ${entry.key}`}`;
+    const withIndex = (text: string) =>
+        input.memberIndex === undefined ? text : text.replace(/\{j\}/gi, String(input.memberIndex));
+    const from = (reference: string) =>
+        `<span style="color:var(--vscode-descriptionForeground);">_(${reference.replace(/[\\*_[\]<>`]/g, '\\$&')})_</span>`;
+    const lineOf = (file: string, line: number) => `${file}:${line + 1}`;
     return [
-        `**${input.name}** — ${input.kindLabel}`,
-        ...input.entries.map(e => describe(e, `line ${e.line + 1}`)),
-        ...(input.includedEntries ?? []).flatMap(inc => inc.entries.map(e => describe(e, `${inc.file}, line ${e.line + 1}`))),
-        ...input.configDescriptions.map(d => `${d.text} (.xppsettings.json: ${d.key})`),
+        `**${input.name}** — ${input.kindLabel} ${from(lineOf(input.declaredAt.file, input.declaredAt.line))}`,
+        ...input.files.flatMap(({ file, entries }) =>
+            entries.map(e => `${withIndex(e.text)} ${from(lineOf(file, e.line) + (e.key.toLowerCase() === nameLower ? '' : ` — from ${e.key}`))}`)),
+        ...input.configDescriptions.map(d => `${withIndex(d.text)} ${from(`.xppsettings.json: ${d.key}`)}`),
     ].join('\n\n');
 }
 
@@ -364,8 +393,12 @@ export interface EntryRemoval {
  */
 export function entryRemoval(lines: string[], entry: DescriptionEntry): EntryRemoval {
     const at = (character: number, line = entry.line) => ({ line, character });
-    if (entry.placement === 'above') return { start: at(0), end: at(0, entry.line + 1) };
     const text = lines[entry.line];
+    if (entry.placement === 'above') {
+        // the whole comment line, unless other parts share it
+        const others = (text.substring(0, entry.start) + text.substring(entry.end)).replace(/[#;\s]/g, '');
+        if (others === '') return { start: at(0), end: at(0, entry.line + 1) };
+    }
     const separatorAfter = /^\s*;\s*/.exec(text.substring(entry.end));
     if (separatorAfter) return { start: at(entry.start), end: at(entry.end + separatorAfter[0].length) };
     const separatorBefore = /\s*;\s*$/.exec(text.substring(0, entry.start));

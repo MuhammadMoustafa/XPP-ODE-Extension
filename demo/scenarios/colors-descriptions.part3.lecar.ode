@@ -1,8 +1,10 @@
 # Morris-Lecar cells coupled through their mean voltage
 # ---- parameters ----
 # gca: maximal Ca conductance (mS/cm^2)
+# gk: maximal K conductance; gl: leak conductance
 par gca=4.4, gk=8, gl=2
 par vca=120, vk=-84, vl=-60
+# iapp: applied current (uA/cm^2)
 par iapp=90
 par phi=0.04, cm=20, gsyn=0.2
 par va=-1.2, vb=18, vc=2, vd=30
@@ -13,11 +15,10 @@ winf(v)=.5*(1+tanh((v-vc)/vd))
 tauw(v)=1/cosh((v-vc)/(2*vd))
 iion(v,w)=gca*minf(v)*(v-vca)+gk*w*(v-vk)+gl*(v-vl)
 
-# ---- five cells ----
-# vm: membrane voltage of cell j (mV)
-vm[1..5]'=(iapp-iion(vm[j],w[j])+gsyn*(vbar-vm[j]))/cm
-w[1..5]'=phi*(winf(vm[j])-w[j])/tauw(vm[j])
-vbar=(vm1+vm2+vm3+vm4+vm5)/5
+# ---- ten cells ----
+vm[1..10]'=(iapp-iion(vm[j],w[j])+gsyn*(vbar-vm[j]))/cm
+w[1..10]'=phi*(winf(vm[j])-w[j])/tauw(vm[j])
+vbar=(vm1+vm2+vm3+vm4+vm5+vm6+vm7+vm8+vm9+vm10)/10
 aux pair=vm2-vm4
 
 @ total=1000, dt=0.5

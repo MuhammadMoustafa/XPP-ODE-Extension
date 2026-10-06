@@ -43,7 +43,7 @@ suite('Identifier colours', () => {
 
         test('non-object input is an error, undefined is empty', () => {
             assert.strictEqual(parseColorConfig(['#fff']).errors.length, 1);
-            assert.deepStrictEqual(parseColorConfig(undefined), { styles: new Map(), wildcards: [], groups: new Map(), errors: [] });
+            assert.deepStrictEqual(parseColorConfig(undefined), { styles: new Map(), wildcards: [], selections: [], groups: new Map(), errors: [] });
         });
 
         test('accepts * wildcards and rejects other pattern characters', () => {

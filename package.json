@@ -2,7 +2,7 @@
 	"name": "xpp",
 	"displayName": "XPP",
 	"description": "Provides XPP \"ode, inc\" syntax and functionalities for VSCode",
-	"version": "0.4.2",
+	"version": "0.4.3",
 	"publisher": "MuhammadMoustafa",
 	"author": {
 		"name": "Muhammad Moustafa",
@@ -537,7 +537,7 @@
 						}
 					},
 					"propertyNames": {
-						"pattern": "^(@[a-z]+|[A-Za-z0-9_*]+)$"
+						"pattern": "^(@[a-z]+|[A-Za-z0-9_*]+|[A-Za-z_][A-Za-z0-9_]*\\[[0-9 ,.-]+\\])$"
 					}
 				},
 				"xpp-ode.identifierColors": {

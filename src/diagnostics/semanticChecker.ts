@@ -24,7 +24,8 @@ export class SemanticChecker {
         return checkSemantics(model, externalNames, isIncFile).map(res => {
             const range = new vscode.Range(res.line, res.start, res.line, res.end);
             const diagnostic = new vscode.Diagnostic(range, res.message, SEVERITY[res.severity]);
-            diagnostic.code = res.type;
+            // A code with a target shows as a link in the Problems panel and the hover
+            diagnostic.code = res.href ? { value: res.codeLabel ?? res.type, target: vscode.Uri.parse(res.href) } : res.type;
             diagnostic.source = 'xpp';
             if (res.unnecessary) {
                 diagnostic.tags = [vscode.DiagnosticTag.Unnecessary];

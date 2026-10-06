@@ -305,3 +305,93 @@ suite('tables, Markov chains and derived parameters (measured on xppautX 2026-09
         assert.strictEqual(apply("y'=1\n!d=2*\\\ny\ndone").text, "y'=1\nd=2*\\\ny\ndone");
     });
 });
+
+// XPPAUT reads "#" as a comment only at the start of a line. On a "p", "number", "init" or "wiener"
+// line every word after it becomes a name (form_ode.c get_next2 loops; XPPAUT issue #11).
+suite('a "#" comment after a name list is not a comment in XPPAUT', () => {
+    const hashes = (text: string) => run(text).filter(r => r.type === 'hash-comment');
+
+    test('par: the words after # are names, and the error links the XPPAUT issue', () => {
+        const results = hashes('par gr=0.01   # Changed on Oct 6th 2009\ny\'=-gr*y\ndone');
+        assert.strictEqual(results.length, 1);
+        assert.strictEqual(results[0].severity, 'error');
+        assert.strictEqual(results[0].line, 0);
+        assert.strictEqual(results[0].start, 14);
+        assert.strictEqual(results[0].end, 39);
+        assert.ok(results[0].message.includes('"#", "Changed", "on", "Oct"'), results[0].message);
+        assert.strictEqual(results[0].codeLabel, 'Ermentrout/xppaut#11');
+        assert.strictEqual(results[0].href, 'https://github.com/Ermentrout/xppaut/issues/11');
+    });
+
+    test('number, init and wiener lines read it the same way', () => {
+        for (const line of ['number n=3 # sites', 'p a=1 # x', 'init y=1 # start', 'wiener w # noise']) {
+            const results = hashes(`${line}\ndone`);
+            assert.strictEqual(results.length, 1, line);
+            assert.strictEqual(results[0].start, line.indexOf('#'));
+        }
+    });
+
+    test('a comment on its own line, and lines whose comment XPPAUT does read, are left alone', () => {
+        assert.deepStrictEqual(hashes('# a note\npar a=1\ndone'), []);
+        assert.deepStrictEqual(hashes("par a=1\ny'=-a*y   # decay\naux z=y   # shown\ndone"), []);
+        assert.deepStrictEqual(hashes('par a=1\ndone # after done'), []);
+        assert.deepStrictEqual(hashes("par a=1\ny'=-y\nglobal 1 y-1 {y=0}   # reset\ndone"), []);
+    });
+
+    test('a comment on the last line of a continued list is found on that line', () => {
+        const results = hashes('par a=1, \\\n  b=2   # note\ndone');
+        assert.strictEqual(results.length, 1);
+        assert.strictEqual(results[0].line, 1);
+        assert.strictEqual(results[0].start, 8);
+    });
+
+    test('names are shown without a repeat claim when the # is stuck to its word', () => {
+        const attached = hashes('par a=1 #note here\ndone')[0];
+        assert.ok(attached.message.includes('"#note", "here"'), attached.message);
+        assert.ok(!attached.message.includes('twice'));
+        assert.ok(hashes('par a=1 # note\ndone')[0].message.includes('twice'));
+    });
+
+    test('the fix moves the comment above as "name: text", the form that describes the name', () => {
+        const fix = hashes('  par gr=0.01   # Changed on Oct\ndone')[0].fix!;
+        assert.strictEqual(fix.line, 0);
+        assert.strictEqual(fix.start, 0);
+        assert.strictEqual(fix.end, 32);
+        assert.strictEqual(fix.text, '  # gr: Changed on Oct\n  par gr=0.01');
+        assert.strictEqual(hashes('init y=1 # start\ndone')[0].fix!.text, '# y: start\ninit y=1');
+    });
+
+    test('the fix keeps "name: text; name: text" on one line and shares a plain comment among the names', () => {
+        assert.strictEqual(hashes('par gna=120, gk=36  # gna: max Na; gk: max K\ndone')[0].fix!.text,
+            '# gna: max Na; gk: max K\npar gna=120, gk=36');
+        assert.strictEqual(hashes('par a=1, b=2  # units\ndone')[0].fix!.text,
+            '# a: units; b: units\npar a=1, b=2');
+    });
+
+    test('a shared comment that contains ";" gets one line per name, so it is not split wrongly', () => {
+        assert.strictEqual(hashes('par a=1, b=2  # mS; per cell\ndone')[0].fix!.text,
+            '# a: mS; per cell\n# b: mS; per cell\npar a=1, b=2');
+    });
+});
+
+// Measured on xppautX 2026-10-06: "x[1..3]'=-x[j]" with "par x2=5" (or "x2=5") stops with "Duplicate name X2";
+// reading x2 ("aux a=x2") is fine, it is the array's member.
+suite('a name that is already a member of an array', () => {
+    const dups = (text: string) => run(text).filter(r => r.type === 'array-member-duplicate');
+
+    test('is an error wherever it is declared, before or after the array', () => {
+        for (const text of ["x[1..3]'=-x[j]\npar x2=5\ndone", "par x2=5\nx[1..3]'=-x[j]\ndone", "x[1..3]'=-x[j]\nx2=5\ndone"]) {
+            const results = dups(text);
+            assert.strictEqual(results.length, 1, text);
+            assert.strictEqual(results[0].severity, 'error');
+            assert.ok(results[0].message.includes('Duplicate name X2'), results[0].message);
+        }
+        assert.strictEqual(dups("x[1..3]'=-x[j]\npar x2=5\ndone")[0].line, 1);
+        assert.strictEqual(dups("par x2=5\nx[1..3]'=-x[j]\ndone")[0].line, 0);
+    });
+
+    test('a name outside the range, and a plain use of the member, are fine', () => {
+        assert.deepStrictEqual(dups("x[1..3]'=-x[j]\npar x4=5\ndone"), []);
+        assert.deepStrictEqual(dups("x[1..3]'=-x[j]\naux a=x2\nx2(0)=1\ndone"), []);
+    });
+});

@@ -9,9 +9,19 @@ Write XPPAUT models (`.ode`, `.inc`) with highlighting, refactoring and checks t
 - Syntax highlighting, bracket matching, and commenting with `Ctrl+/`.
 - A ["Run ODE File" button](#run-ode-file) that starts xppaut on the current file, with setup notes for Linux, macOS and Windows.
 
-![Custom colours typed rule by rule, diagnostics with their reason on hover, rename, and extract to variable](images/colors-demo.gif)
+![Colours typed rule by rule in .xppsettings.json: a group, a wildcard, and a description that shows on hover](images/colors-demo.gif)
 
-## What's new in 0.4.2
+## What's new in 0.4.3
+
+- An error for a `#` comment after the names of a `par`, `number`, `init` or `wiener` line: XPPAUT reads its words as names (`par gr=0.01  # Changed on Oct` declares `#`, `Changed`, `on` and `Oct`). The error links to [the XPPAUT issue](https://github.com/Ermentrout/xppaut/issues/11), and a quick fix moves the comment above the line as `# gr: Changed on Oct`, where it describes the name on hover. See [where to write a description](#where-to-write-a-description).
+
+- An error for a name that is already a member of an array: with `x[1..3]'=-x[j]`, `par x2=5` stops XPP with `Duplicate name X2`. Reading `x2` is fine.
+
+- One hover format: the declaration's `file:line`, then each description with its `file:line`, the reference in grey italics. `{j}`, array selections in `.xppsettings.json` and several descriptions in one `;` comment are described [below](#where-to-write-a-description).
+
+- An `.ode` now reads its whole `#include` tree (an include inside an included file too), for hovers and for undefined names.
+
+### 0.4.2
 
 More checks for what XPP reads differently from how it looks, each measured on [xppautX](https://github.com/MuhammadMoustafa/xppautX):
 
@@ -36,11 +46,11 @@ Every release is listed in the [changelog](CHANGELOG.md).
 
 The extension checks each `.ode`/`.inc` file as you type and reports:
 
-- **Errors**, for what stops XPP loading the file or makes it ignore a line: missing `done`, unbalanced brackets, reserved words used as names, duplicate or conflicting names, `solv` lines with spaces around `=`, a [sign where XPP allows none](#operator-precedence) (`2*-3`, `x^-2`), [operators XPP does not have](#operator-precedence) (`!=`, `&&`, `||`, `!x`), an `if` not written `if(c)then(a)else(b)`, an [`init` value](#initial-values) that is not a plain number (`init y=2*3` starts at 2), `@` options XPP drops because they are not exactly `name=value`, [numeric `@` values that are not plain numbers](#-option-values) (`@ total=2*3` is 2, not 6), a two-dimensional `table g @ file` (not implemented in XPP), a Markov cell without its closing `}`, and two `markov` lines with the same name.
+- **Errors**, for what stops XPP loading the file or makes it ignore a line: missing `done`, unbalanced brackets, reserved words used as names, duplicate or conflicting names, `solv` lines with spaces around `=`, a [sign where XPP allows none](#operator-precedence) (`2*-3`, `x^-2`), [operators XPP does not have](#operator-precedence) (`!=`, `&&`, `||`, `!x`), an `if` not written `if(c)then(a)else(b)`, an [`init` value](#initial-values) that is not a plain number (`init y=2*3` starts at 2), `@` options XPP drops because they are not exactly `name=value`, [numeric `@` values that are not plain numbers](#-option-values) (`@ total=2*3` is 2, not 6), a two-dimensional `table g @ file` (not implemented in XPP), a Markov cell without its closing `}`, two `markov` lines with the same name, a [`#` comment after the names](#where-to-write-a-description) of a `par`, `number`, `init` or `wiener` line (XPPAUT reads its words as names), and a declaration of a name that is already a member of an array (`par x2=5` beside `x[1..3]`: `Duplicate name X2`).
 - **Warnings**, for what loads but probably does not mean what you wrote: text after `done` (shown dimmed; XPP stops reading there), undefined names, unused parameters, fixed variables and functions (shown faded), initial conditions for names that are not state variables, lines XPP silently skips, unknown `@` option names, fixed variables named like a keyword (`p=1`), a [comparison, `&` or `|` next to arithmetic](#operator-precedence) (`2*3<4`, `-1<0`, `a<b<c`, `a|b-c`), a [formula in `y(0)=`](#initial-values) (`y` starts at 0), a division by a literal `0` (XPP silently gives 4.5e14, not an error), and a derived parameter reading something that changes (`!d=y` is worked out at the run's start and stays at `y`'s first value).
 - **Information**, for legal surprises: `2^3^2` is `(2^3)^2`, `-2^2` is `-(2^2)`, and in `if(c)then(a)else(b)+5` the `+5` applies to the whole `if`.
 
-Names defined in `#include`d files count as defined. Inside an `.inc` file the undefined-name check is off, because the including `.ode` file may define them.
+Names defined in `#include`d files count as defined, also in files included by those files. An `.ode` reads its whole include tree; an `.inc` does not read the `.ode` that includes it, because it cannot know which one that is. So inside an `.inc` file the undefined-name check is off, and hovering a name that only the `.ode` declares shows nothing. If your project uses `.inc` files, give the names they share a look in `.xppsettings.json` by name (`"gk": "#c00"`): a name key colours the name wherever it is written, declared in that file or not. The `@states`-style categories and descriptions need the name declared in the file (or in a file it includes).
 
 <details>
 <summary><strong>The XPP syntax rules behind these checks</strong></summary>
@@ -167,10 +177,9 @@ x'=a+-b            # rejected -- write a+(-b)
 f(t)=if(t<-1.3)... # rejected -- write if(t<(-1.3))
 x'=+2*a            # rejected -- XPP has no unary "+" at all, not even as "(+2)"
 x'=-3E-5*a         # fine: the sign starts the expression
-par a=-3E-5        # fine: a declaration value is a plain number, not an expression
 ```
 
-The quick fix writes the working form for you: it brackets a minus (`2*-3` becomes `2*(-3)`) and drops a plus (`2*+3` becomes `2*3`).
+A `par` value is a plain number, not an expression, so `par a=-3E-5` is fine. The quick fix writes the working form for you: it brackets a minus (`2*-3` becomes `2*(-3)`) and drops a plus (`2*+3` becomes `2*3`).
 
 ### 5. `a<b<c` does not mean what it says
 
@@ -251,6 +260,8 @@ Work the value out yourself, or, for an array, use the `x[1..n](0)=` form.
 
 ## Custom colours for variables and parameters
 
+![Colours typed rule by rule in .xppsettings.json](images/colors-demo.gif)
+
 Give any name in your models its own look, independent of the theme: the membrane voltage always red, every parameter bold green, builtins italic, one variable in a box. The colours follow the parser, so a parameter is coloured everywhere it is used, not only on its `par` line.
 
 Put a `.xppsettings.json` in a folder, and it applies to every `.ode`/`.inc` file in that folder and its subfolders:
@@ -273,6 +284,8 @@ Put a `.xppsettings.json` in a folder, and it applies to every `.ode`/`.inc` fil
 
 Reading it: state variables are salmon and parameters bold green everywhere they appear. `v` is white in a salmon box, because an exact name wins over its group. Every name starting with `g_` (`g_na`, `g_k`, `g_l`) is underlined in the theme's colour, because a wildcard wins over its group and replaces it entirely. `iapp` is dark red on light themes and pale red on dark ones. Option names on `@` lines are faded.
 
+A function's arguments are local to its line: in `iion(v,w)=...` the `w` is not the state array `w`, so it is not coloured like it.
+
 Hex colours show a swatch you can click for the colour picker. Completion (`Ctrl+Space`, or typing `"` or `@`) offers the groups, every name declared in the folder's models with its kind, and the style properties with their allowed values; misspelled properties and invalid values are underlined. Changes apply immediately.
 
 ### Where to put the configuration
@@ -290,7 +303,8 @@ Both places take the same object: the setting holds it directly, the file under 
 | Key | Meaning | Example |
 |---|---|---|
 | a name | that identifier, case-insensitive; an array name also covers its members | `"v"`, `"gsyn"`, `"u"` (covers `u[j]`, `u[0..9]`, `u0`...`u9`) |
-| a name with `*` | every identifier matching the pattern (`*` = any letters, digits or `_`) | `"v_*"`, `"*_syn"`, `"u*x"` |
+| a name with `*` | every identifier matching the pattern; `*` stands for any letters, digits or `_` (also none), at the end, the start or in the middle | `"v_*"`, `"*_syn"`, `"u*x"` |
+| an array with members | only those members, as in descriptions: a list, a range, or both | `"vm[2, 4]"`, `"x[1..3, 7]"` |
 | `@group` | a whole category, resolved by the parser | `"@states"`, `"@parameters"` |
 
 | Group | Contains |
@@ -359,33 +373,26 @@ Every VS Code theme declares itself as light, dark or high-contrast; `light`/`da
 
 ## Descriptions on hover
 
-![Descriptions from comments on hover, array member keys, and the quick fix for an overridden description](images/descriptions-demo.gif)
+![A description written above a declaration, the # comment after the names that XPPAUT reads as names, its quick fix, and several names sharing one comment](images/comments-demo.gif)
 
 Write what a name means in a `#` comment, like a docstring, and hovering the name anywhere in the code shows it with the name's kind:
 
 ```
-par gna=120   # Maximal sodium conductance (mS/cm^2)
+# gna: Maximal sodium conductance (mS/cm^2)
+par gna=120
 ```
 
-> **gna** — parameter
+> **gna** — parameter *(hh.ode:2)*
 >
-> Maximal sodium conductance (mS/cm^2) (line 1)
+> Maximal sodium conductance (mS/cm^2) *(hh.ode:1)*
 
-Names declared in `#include`d files show their descriptions too.
+Every hover reads the same way: the name, its kind and the `file:line` where it is declared, then each description with the `file:line` it was written at, in grey italics, then the descriptions from `.xppsettings.json` with their key. The file is shown for every line, also for names declared in `#include`d files.
+
+Names declared in `#include`d files show their descriptions too, and so do the files those include in turn.
 
 ### Where to write a description
 
-**After the code**, on the declaration line (or on any line of a line continued with `\`):
-
-| Comment | Meaning |
-|---|---|
-| `par gna=120  # Max Na conductance` | one name on the line: the whole comment describes it |
-| `par gna=120, gk=36  # gna: max Na; gk: max K` | `name: text` parts separated by `;` describe each name |
-| `par gna=120, gk=36  # conductances (mS/cm^2)` | several names and a plain comment: **shared** by all of them |
-
-The comment is split into parts only when **every** part is `name: text` for a name on that line; otherwise it is plain text, so `par gna=120  # units: mS/cm^2` describes `gna` as "units: mS/cm^2".
-
-**Above the declaration**, one `# name: text` line per name, directly above it (no blank line in between). Handy for long lists; other comment lines, such as section headers, are ignored:
+**Above the declaration**, one `# name: text` line per name:
 
 ```
 # ---- sodium current ----
@@ -394,9 +401,25 @@ The comment is split into parts only when **every** part is `name: text` for a n
 par gna=120, ena=50
 ```
 
-Keys are case-insensitive.
+The rules:
+
+- **One line per name, or several with `;`.** `# gk: maximal K; gl: leak` describes both names, as long as every part is `name: text` for a name on the declaration line; otherwise the `;` is ordinary text and the whole comment goes to the first name.
+- **Directly above.** The comment lines must touch the declaration. A blank line, or a line holding only spaces, between them breaks the link; a comment below the declaration, or further up, describes nothing. Comment lines without a key, such as the `# ---- sodium current ----` header, are ignored and do not break it.
+- **Several declarations, several blocks.** Each declaration line takes the block of comments right above it.
+- **Spaces and case are free.** `#gna:text`, `# gna : text`, `#   gna:   text` and `# GNA: text` all work, and so do tabs. The key needs its `:` and some text after it.
+- **The key must be a name on that line.** A key that is not (`# zzz: text` above `par gna=120`) is ignored; for an array member the array does not have, it is a warning.
+
+**After the code**, on an equation line (or on any line of a line continued with `\`): the whole comment describes the one name on the line.
+
+```
+x'=-x/tau   # membrane voltage of the cell (mV)
+```
+
+> **Not after `par`, `number`, `init` or `wiener`.** XPPAUT reads a `#` comment only at the start of a line. After the names on these lines it makes a name of `#` and of every word after it: `par gr=0.01  # Changed on Oct 6th` declares the parameters `#`, `Changed`, `on`, `Oct` and `6th`, and a second such line stops the load because `#` is declared twice ([XPPAUT issue 11](https://github.com/Ermentrout/xppaut/issues/11)). The extension marks it as an error with a link to that issue, still shows the text on hover, and its quick fix (`Ctrl+.`) moves the comment to its own line above.
 
 ### Arrays
+
+![{j}, ranges and single members as description keys, the same keys in .xppsettings.json, layered descriptions, and the quick fix for a variable described twice](images/arrays-demo.gif)
 
 An array such as `x[1..10]` is one name for a plain comment, and keys can pick its members:
 
@@ -404,8 +427,8 @@ An array such as `x[1..10]` is one name for a plain comment, and keys can pick i
 |---|---|
 | `x: text` | the array and every member |
 | `x[3..5]: text` | members `x3`..`x5` |
-| `x[3,5]: text` | members `x3` and `x5`; lists and ranges mix: `x[1..3, 7, 9]` |
-| `x7: text` | only `x7` |
+| `x[3, 5]: text` | members `x3` and `x5`; lists and ranges mix: `x[1..3, 7, 9]` |
+| `x7: text` or `x[7]: text` | only `x7`; the two spellings mean the same, so the one written later comes first in the hover |
 
 ```
 # x: membrane voltage of cell j (mV)
@@ -416,21 +439,37 @@ x[1..10]'=-x[j]+i_syn[j]
 
 A key for a member the array does not have (`x11:` or `x[9..12]:` above) is a warning.
 
+**`{j}` is the member's number.** Write `{j}` in a description, in a comment or in `.xppsettings.json`, and hovering `x7` shows 7 in its place:
+
+```
+# x: membrane voltage of cell {j} (mV)
+# x[1..3]: excitatory cell {j}
+x[1..10]'=-x[j]+i_syn[j]
+```
+
+> **x2** — state variable (array x[1..10]) *(m.ode:3)*
+>
+> excitatory cell 2 *(m.ode:2 — from x[1..3])*
+>
+> membrane voltage of cell 2 (mV) *(m.ode:1 — from x)*
+
+Hovering the array `x` itself, or a name that is not an array member, leaves `{j}` as written.
+
 ### Several descriptions for one name
 
 A name can have descriptions at several levels, and the hover shows them all, most specific first:
 
 1. its own: `x7:`, or the plain comment on its own line;
-2. a selection: `x[1..3]:`, `x[3,5]:`;
+2. a selection: `x[1..3]:`, `x[3, 5]:`;
 3. inherited: `x:` seen from a member, or a comment shared by the names of a line.
 
-> **x7** — state variable (array x[1..10])
+> **x7** — state variable (array x[1..10]) *(m.ode:4)*
 >
-> the pacemaker cell (line 3)
+> the pacemaker cell *(m.ode:3)*
 >
-> membrane voltage of cell j (mV) (line 1) — from x
+> membrane voltage of cell 7 (mV) *(m.ode:1 — from x)*
 
-Two descriptions at the **same** level (1 or 2) are a mistake: `x3` above described by both `x[1..3]:` and a later `x[3,5]:`, or `gna` described both above its line and after it. The later one wins (a comment after the code counts as later than the lines above), and the other is marked with a warning "Description of "x3" is overridden by line 12" that links to the winner. Its quick fix (`Ctrl+.`) removes the overridden description.
+Two descriptions of one variable are a mistake: `gna` described both above its line and after it, or twice above. The later one wins (a comment after the code counts as later than the lines above), and the other is marked with a warning "Description of "gna" is overridden by line 12" that links to the winner. Its quick fix (`Ctrl+.`) removes the overridden description, or only that part when it shares a comment line with others. **Array members are exempt**: `x3` may be described by `x:`, `x[1..3]:`, `x[3, 5]:` and `x3:` all at once, and the hover shows them all, the later one first.
 
 ### Descriptions in `.xppsettings.json`
 
@@ -447,7 +486,7 @@ For names in files you cannot edit, or shared by a folder of models, add a `desc
 }
 ```
 
-These are shown after the comments, each with its key. Unlike colours, the levels do not hide each other: a name gets the description of its own entry, of every matching wildcard (last listed first) and of its group. An array member also gets its array's (`"x"` for `x7`). Keys with a selection (`"x[1..3]"`) are not supported here.
+These are shown after the comments, each with its key. Unlike colours, the levels do not hide each other: a name gets the description of its own entry, of every matching wildcard (last listed first) and of its group. An array member also gets its array's (`"x"` for `x7`). Keys that pick members (`"x[1..3]"`) work here too (`"x[7]"` is the same entry as `"x7"`: the one listed last wins), and apply to those members after their own entry and before the whole array's (the last one listed wins when several pick the same member). Colours follow the same order: a member's own entry, then the selections, then the array.
 
 ## Run ODE File
 

@@ -12,7 +12,7 @@
   "definitions": {
     "variables": {
       "type": "object",
-      "description": "Colours, styles and hover descriptions for XPP names in every .ode/.inc file of this folder and its subfolders. Keys: a name (case-insensitive), a wildcard such as \"v_*\", or a category such as \"@states\".",
+      "description": "Colours, styles and hover descriptions for XPP names in every .ode/.inc file of this folder and its subfolders. Keys: a name (case-insensitive), a wildcard such as \"v_*\" (the * can stand anywhere: \"g*\", \"*g\", \"f*g\"), array members such as \"vm[2, 4]\" or \"x[1..3, 7]\", or a category such as \"@states\".",
       "properties": {
         "@states": {
           "$ref": "#/definitions/value",
@@ -60,7 +60,7 @@
         }
       },
       "propertyNames": {
-        "pattern": "^(@[a-z]+|[A-Za-z0-9_*]+)$"
+        "pattern": "^(@[a-z]+|[A-Za-z0-9_*]+|[A-Za-z_][A-Za-z0-9_]*\\[[0-9 ,.-]+\\])$"
       },
       "additionalProperties": {
         "$ref": "#/definitions/value"
